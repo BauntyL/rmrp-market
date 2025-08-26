@@ -19,6 +19,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!supabase) return;
     
     try {
+      // First try to restore from localStorage
+      const storedUser = localStorage.getItem('rmrp_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser) as User;
+          // Verify user still exists and is not blocked
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', parsed.id)
+            .maybeSingle();
+            
+          if (profile && !profile.is_blocked) {
+            const mapped: User = {
+              id: profile.id,
+              uniqueId: profile.unique_id,
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              password: '',
+              role: profile.role,
+              createdAt: new Date(profile.created_at),
+              isBlocked: profile.is_blocked,
+              rating: profile.rating ?? 0,
+              reviewCount: profile.review_count ?? 0
+            };
+            setUser(mapped);
+            localStorage.setItem('rmrp_user', JSON.stringify(mapped));
+            return;
+          }
+        } catch (e) {
+          // Invalid stored data, clear it
+          localStorage.removeItem('rmrp_user');
+        }
+      }
+
+      // If no valid stored user, check Supabase session
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session || null;
       
