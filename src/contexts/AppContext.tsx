@@ -423,37 +423,84 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ));
   };
 
-  const moderateListing = (id: string, action: 'approve' | 'reject', reason?: string) => {
+  const moderateListing = async (id: string, action: 'approve' | 'reject', reason?: string) => {
     const listing = listings.find(l => l.id === id);
     if (!listing || !supabase) return;
 
-    // Обновляем статус в базе данных
-    void supabase
-      .from('listings')
-      .update({ 
-        status: action === 'approve' ? 'active' : 'rejected',
-        rejection_reason: reason,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .then(() => {
-        console.log(`Listing ${id} status updated to ${action === 'approve' ? 'active' : 'rejected'}`);
-      })
-      .catch(error => {
+    try {
+      // Обновляем статус в базе данных
+      const { error } = await supabase
+        .from('listings')
+        .update({ 
+          status: action === 'approve' ? 'active' : 'rejected',
+          rejection_reason: reason,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+        
+      if (error) {
         console.error('Error updating listing status:', error);
-      });
-
-    // Обновляем состояние в React
-    setListings(prev => prev.map(listing => 
-      listing.id === id 
-        ? { 
-            ...listing, 
-            status: action === 'approve' ? 'active' : 'rejected',
-            rejectionReason: reason,
-            updatedAt: new Date()
-          }
-        : listing
-    ));
+        return;
+      }
+      
+      console.log(`Listing ${id} status updated to ${action === 'approve' ? 'active' : 'rejected'}`);
+      
+      // Обновляем состояние в React
+      setListings(prev => prev.map(listing => 
+        listing.id === id 
+          ? { 
+              ...listing, 
+              status: action === 'approve' ? 'active' : 'rejected',
+              rejectionReason: reason,
+              updatedAt: new Date()
+            }
+          : listing
+      ));
+      
+      // Перезагружаем объявления из базы данных для синхронизации
+      await loadListingsFromDB();
+    } catch (error) {
+      console.error('Error in moderateListing:', error);
+    }
+  };
+  
+  // Функция для загрузки объявлений из базы данных
+  const loadListingsFromDB = async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error loading listings:', error);
+        return;
+      }
+      
+      if (data) {
+        const mapped: Listing[] = data.map((l: any) => ({
+          id: l.id,
+          title: l.title,
+          description: l.description,
+          price: Number(l.price),
+          currency: l.currency,
+          category: l.category,
+          serverId: l.server_id,
+          userId: l.user_id,
+          images: Array.isArray(l.images) ? l.images : [],
+          status: l.status,
+          createdAt: new Date(l.created_at),
+          updatedAt: new Date(l.updated_at),
+          rejectionReason: l.rejection_reason || undefined
+        }));
+        setListings(mapped);
+        console.log('Listings reloaded from database');
+      }
+    } catch (error) {
+      console.error('Error in loadListingsFromDB:', error);
+    }
+  };
 
     const createModerationNotification = () => {
       if (!supabase) return;
