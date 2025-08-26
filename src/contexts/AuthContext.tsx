@@ -118,32 +118,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return `${num1}-${num2}`;
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
     try {
       if (!supabase) throw new Error('Supabase not configured');
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error || !data.user) return false;
+      const fn = firstName.trim();
+      const ln = lastName.trim();
 
-      const { data: profile } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', data.user.id)
+        .eq('first_name', fn)
+        .eq('last_name', ln)
+        .limit(1)
         .maybeSingle();
 
-      if (!profile || profile.is_blocked) return false;
+      if (error) throw error;
+      if (!data) return false;
+
+      const passwordMatches = await bcrypt.compare(password, data.password_hash);
+      if (!passwordMatches || data.is_blocked) return false;
 
       const mapped: User = {
-        id: profile.id,
-        uniqueId: profile.unique_id,
-        firstName: profile.first_name,
-        lastName: profile.last_name,
+        id: data.id,
+        uniqueId: data.unique_id,
+        firstName: data.first_name,
+        lastName: data.last_name,
         password: '',
-        role: profile.role,
-        createdAt: new Date(profile.created_at),
-        isBlocked: profile.is_blocked,
-        rating: profile.rating ?? 0,
-        reviewCount: profile.review_count ?? 0
+        role: data.role,
+        createdAt: new Date(data.created_at),
+        isBlocked: data.is_blocked,
+        rating: data.rating ?? 0,
+        reviewCount: data.review_count ?? 0
       };
       setUser(mapped);
       localStorage.setItem('rmrp_user', JSON.stringify(mapped));
@@ -153,24 +159,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (email: string, firstName: string, lastName: string, password: string): Promise<boolean> => {
+  const register = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
     if (!supabase) throw new Error('Supabase not configured');
 
     const fn = firstName.trim();
     const ln = lastName.trim();
 
-    const { data: signUpRes, error: signUpErr } = await supabase.auth.signUp({
-      email: email.trim(),
-      password
-    });
-    if (signUpErr || !signUpRes.user) return false;
+    const { data: existing, error: existingError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('first_name', fn)
+      .eq('last_name', ln)
+      .limit(1)
+      .maybeSingle();
 
-    // Keep password_hash to satisfy NOT NULL; though Supabase Auth stores the password securely
+    if (existingError) throw existingError;
+    if (existing) return false;
+
     const passwordHash = await bcrypt.hash(password, 10);
-
     const now = new Date().toISOString();
     const toInsert = {
-      id: signUpRes.user.id, // keep ids aligned with auth.users
       unique_id: generateUniqueId(),
       first_name: fn,
       last_name: ln,

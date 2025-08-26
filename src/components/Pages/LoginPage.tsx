@@ -9,7 +9,7 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    fullName: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -21,7 +21,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     setIsLoading(true);
 
     try {
-      const success = await login(formData.email, formData.password);
+      const nameParts = formData.fullName.trim().split(' ');
+      if (nameParts.length < 2) {
+        setError('Введите имя и фамилию через пробел');
+        setIsLoading(false);
+        return;
+      }
+      
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+      
+      const success = await login(firstName, lastName, formData.password);
       if (success) {
         onNavigate('home');
       } else {
@@ -54,15 +64,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Email
+                  Имя Фамилия
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="you@example.com"
+                  placeholder="Иван Петров"
                 />
               </div>
 

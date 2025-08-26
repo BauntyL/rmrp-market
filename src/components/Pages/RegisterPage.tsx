@@ -9,9 +9,7 @@ interface RegisterPageProps {
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
   const { register } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
+    fullName: '',
     password: '',
     confirmPassword: '',
     agreeToTerms: false
@@ -22,6 +20,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const nameParts = formData.fullName.trim().split(' ');
+    if (nameParts.length < 2) {
+      setError('Введите имя и фамилию через пробел');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Пароли не совпадают');
@@ -41,12 +45,15 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     setIsLoading(true);
 
     try {
-      const success = await register(formData.email, formData.firstName, formData.lastName, formData.password);
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+      
+      const success = await register(firstName, lastName, formData.password);
       
       if (success) {
         onNavigate('home');
       } else {
-        setError('Пользователь с таким email уже существует или регистрация отклонена');
+        setError('Пользователь с таким именем уже существует');
       }
     } catch (err) {
       setError('Произошла ошибка при регистрации');
@@ -75,43 +82,15 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Имя
+                  Имя Фамилия
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="Введите имя"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Фамилия
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="Введите фамилию"
+                  placeholder="Иван Петров"
                 />
               </div>
 
