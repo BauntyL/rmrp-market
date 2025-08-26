@@ -160,20 +160,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         )}
       </div>
 
-      {/* Footer */}
-      {recentNotifications.length > 0 && (
-        <div className="p-4 border-t border-slate-200 dark:border-neutral-700">
-          <button
-            onClick={() => {
-              onNavigate('profile?tab=notifications');
-              onClose();
-            }}
-            className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Посмотреть все уведомления
-          </button>
-        </div>
-      )}
+      {/* Футер удален */}
     </div>
   );
 };
