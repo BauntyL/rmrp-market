@@ -63,12 +63,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  // Validate session on mount and every 30 seconds
+  // Validate session on mount only
   useEffect(() => {
     validateSession();
-    
-    const interval = setInterval(validateSession, 30000);
-    return () => clearInterval(interval);
   }, [validateSession]);
 
   // Keep session in sync across tabs and with Supabase Auth
