@@ -1,38 +1,27 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, AuthContextType } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import bcrypt from 'bcryptjs';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: User[] = [
-  {
-    id: '1',
-    uniqueId: '481-295',
-    firstName: 'Иван',
-    lastName: 'Петров',
-    password: 'password123',
-    role: 'user',
-    createdAt: new Date('2024-01-15'),
-    isBlocked: false,
-    rating: 4.5,
-    reviewCount: 12
-  },
-  {
-    id: '2',
-    uniqueId: '753-642',
-    firstName: 'Админ',
-    lastName: 'Системы',
-    password: 'admin123',
-    role: 'admin',
-    createdAt: new Date('2024-01-01'),
-    isBlocked: false,
-    rating: 5.0,
-    reviewCount: 0
-  }
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('rmrp_user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser) as User;
+        setUser(parsed);
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) localStorage.setItem('rmrp_user', JSON.stringify(user));
+    else localStorage.removeItem('rmrp_user');
+  }, [user]);
 
   const generateUniqueId = (): string => {
     const num1 = Math.floor(Math.random() * 900) + 100;
@@ -41,42 +30,96 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const login = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
-    const foundUser = mockUsers.find(
-      u => u.firstName === firstName && u.lastName === lastName && u.password === password
-    );
-    
-    if (foundUser && !foundUser.isBlocked) {
-      setUser(foundUser);
+    try {
+      if (!supabase) throw new Error('Supabase not configured');
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('first_name', firstName)
+        .eq('last_name', lastName)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return false;
+
+      const passwordMatches = await bcrypt.compare(password, data.password_hash);
+      if (!passwordMatches || data.is_blocked) return false;
+
+      const loggedInUser: User = {
+        id: data.id,
+        uniqueId: data.unique_id,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        password: '',
+        role: data.role,
+        createdAt: new Date(data.created_at),
+        isBlocked: data.is_blocked,
+        rating: data.rating ?? 0,
+        reviewCount: data.review_count ?? 0
+      };
+
+      setUser(loggedInUser);
       return true;
+    } catch (e) {
+      return false;
     }
-    return false;
   };
 
   const register = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
-    const existingUser = mockUsers.find(
-      u => u.firstName === firstName && u.lastName === lastName
-    );
-    
-    if (existingUser) {
+    try {
+      if (!supabase) throw new Error('Supabase not configured');
+
+      const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .eq('first_name', firstName)
+        .eq('last_name', lastName)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) return false;
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const now = new Date().toISOString();
+      const toInsert = {
+        unique_id: generateUniqueId(),
+        first_name: firstName,
+        last_name: lastName,
+        password_hash: passwordHash,
+        role: 'user',
+        is_blocked: false,
+        created_at: now,
+        rating: 0,
+        review_count: 0
+      };
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert(toInsert)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      const newUser: User = {
+        id: data.id,
+        uniqueId: data.unique_id,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        password: '',
+        role: data.role,
+        createdAt: new Date(data.created_at),
+        isBlocked: data.is_blocked,
+        rating: data.rating ?? 0,
+        reviewCount: data.review_count ?? 0
+      };
+
+      setUser(newUser);
+      return true;
+    } catch (e) {
       return false;
     }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      uniqueId: generateUniqueId(),
-      firstName,
-      lastName,
-      password,
-      role: 'user',
-      createdAt: new Date(),
-      isBlocked: false,
-      rating: 0,
-      reviewCount: 0
-    };
-
-    mockUsers.push(newUser);
-    setUser(newUser);
-    return true;
   };
 
   const logout = () => {
