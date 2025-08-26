@@ -32,11 +32,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
     try {
       if (!supabase) throw new Error('Supabase not configured');
+
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('first_name', firstName)
-        .eq('last_name', lastName)
+        .eq('first_name', fn)
+        .eq('last_name', ln)
         .limit(1)
         .maybeSingle();
 
@@ -67,59 +71,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (firstName: string, lastName: string, password: string): Promise<boolean> => {
-    try {
-      if (!supabase) throw new Error('Supabase not configured');
+    if (!supabase) throw new Error('Supabase not configured');
 
-      const { data: existing } = await supabase
-        .from('users')
-        .select('id')
-        .eq('first_name', firstName)
-        .eq('last_name', lastName)
-        .limit(1)
-        .maybeSingle();
+    const fn = firstName.trim();
+    const ln = lastName.trim();
 
-      if (existing) return false;
+    const { data: existing, error: existingError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('first_name', fn)
+      .eq('last_name', ln)
+      .limit(1)
+      .maybeSingle();
 
-      const passwordHash = await bcrypt.hash(password, 10);
-      const now = new Date().toISOString();
-      const toInsert = {
-        unique_id: generateUniqueId(),
-        first_name: firstName,
-        last_name: lastName,
-        password_hash: passwordHash,
-        role: 'user',
-        is_blocked: false,
-        created_at: now,
-        rating: 0,
-        review_count: 0
-      };
+    if (existingError) throw existingError;
+    if (existing) return false;
 
-      const { data, error } = await supabase
-        .from('users')
-        .insert(toInsert)
-        .select('*')
-        .single();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const now = new Date().toISOString();
+    const toInsert = {
+      unique_id: generateUniqueId(),
+      first_name: fn,
+      last_name: ln,
+      password_hash: passwordHash,
+      role: 'user',
+      is_blocked: false,
+      created_at: now,
+      rating: 0,
+      review_count: 0
+    };
 
-      if (error) throw error;
+    const { data, error } = await supabase
+      .from('users')
+      .insert(toInsert)
+      .select('*')
+      .single();
 
-      const newUser: User = {
-        id: data.id,
-        uniqueId: data.unique_id,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        password: '',
-        role: data.role,
-        createdAt: new Date(data.created_at),
-        isBlocked: data.is_blocked,
-        rating: data.rating ?? 0,
-        reviewCount: data.review_count ?? 0
-      };
+    if (error) throw error;
 
-      setUser(newUser);
-      return true;
-    } catch (e) {
-      return false;
-    }
+    const newUser: User = {
+      id: data.id,
+      uniqueId: data.unique_id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      password: '',
+      role: data.role,
+      createdAt: new Date(data.created_at),
+      isBlocked: data.is_blocked,
+      rating: data.rating ?? 0,
+      reviewCount: data.review_count ?? 0
+    };
+
+    setUser(newUser);
+    return true;
   };
 
   const logout = () => {
