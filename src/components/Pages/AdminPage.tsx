@@ -153,7 +153,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                                   <span>{new Intl.NumberFormat('ru-RU').format(listing.price)} {listing.currency}</span>
                                   <span>{server?.displayName}</span>
                                   <span>{listing.category}</span>
-                                  <span>{new Intl.DateTimeFormat('ru-RU').format(listing.createdAt)}</span>
+                                  <span>{listing.createdAt && !isNaN(new Date(listing.createdAt).getTime()) ? new Intl.DateTimeFormat('ru-RU').format(new Date(listing.createdAt)) : 'Н/Д'}</span>
                                 </div>
                               </div>
                               

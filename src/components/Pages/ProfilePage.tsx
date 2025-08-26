@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ListingCard } from '../Common/ListingCard';
 import { MessagesView } from '../Common/MessagesView';
+import { formatDate } from '../../lib/dateUtils';
 
 interface ProfilePageProps {
   onNavigate: (page: string) => void;
@@ -114,7 +115,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-neutral-400 mb-4">
                   <span>ID: {user.uniqueId || 'Н/Д'}</span>
                   <span>Роль: {user.role === 'admin' ? 'Администратор' : user.role === 'moderator' ? 'Модератор' : 'Пользователь'}</span>
-                  <span>Регистрация: {user.createdAt ? new Intl.DateTimeFormat('ru-RU').format(user.createdAt) : 'Н/Д'}</span>
+                  <span>Регистрация: {formatDate(user.createdAt)}</span>
                 </div>
                 
                 {user.reviewCount > 0 && (

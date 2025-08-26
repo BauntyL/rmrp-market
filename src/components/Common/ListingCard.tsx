@@ -1,6 +1,7 @@
 import React from 'react';
 import { Listing, Server, User } from '../../types';
 import { Clock, MapPin, Eye, Heart } from 'lucide-react';
+import { formatDate } from '../../lib/dateUtils';
 
 interface ListingCardProps {
   listing: Listing;
@@ -23,13 +24,13 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     return new Intl.NumberFormat('ru-RU').format(price) + ' ' + currency;
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('ru-RU', {
+  const formatCardDate = (date: Date | string | undefined) => {
+    return formatDate(date, {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    });
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {

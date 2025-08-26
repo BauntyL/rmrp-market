@@ -3,6 +3,7 @@ import { Send, X, Paperclip, MoreVertical } from 'lucide-react';
 import { Chat, Message, User } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
+import { formatDate } from '../../lib/dateUtils';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -39,11 +40,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     setNewMessage('');
   };
 
-  const formatMessageTime = (date: Date) => {
-    return new Intl.DateTimeFormat('ru-RU', {
+  const formatMessageTime = (date: Date | string | undefined) => {
+    return formatDate(date, {
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    });
   };
 
   if (isMinimized) {

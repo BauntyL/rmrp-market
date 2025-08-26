@@ -3,6 +3,7 @@ import { ArrowLeft, MessageCircle, Heart, Share2, MapPin, Calendar, User, Star, 
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ChatWindow } from '../Common/ChatWindow';
+import { formatDate } from '../../lib/dateUtils';
 
 interface ListingDetailPageProps {
   listingId: string;
@@ -400,7 +401,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                   </div>
                   
                   <div className="text-xs text-slate-500 dark:text-neutral-500 mb-4">
-                    На платформе с {new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(seller.createdAt)}
+                    На платформе с {formatDate(seller.createdAt, { month: 'long', year: 'numeric' })}
                   </div>
 
                   <button
