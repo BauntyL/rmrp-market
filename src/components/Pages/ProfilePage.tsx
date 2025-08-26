@@ -253,9 +253,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     </h2>
                     {unreadNotifications.length > 0 && (
                       <button
-                        onClick={() => {
-                          unreadNotifications.forEach(n => markNotificationRead(n.id));
-                        }}
+                        onClick={() => markAllNotificationsRead()}
                         className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         Прочитать все

@@ -161,11 +161,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const loadNotifications = async () => {
       if (!supabase) return;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error loading notifications:', error);
+        return;
+      }
+      
       if (data) {
         const mapped: Notification[] = data.map((n: any) => ({
           id: n.id,
@@ -178,9 +184,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           relatedId: n.related_id || undefined
         }));
         setNotifications(mapped);
+        console.log('Notifications loaded from database:', mapped.length);
       }
     };
     loadNotifications();
+    
+    // Настраиваем подписку на изменения в таблице notifications
+    const notificationsSubscription = supabase
+      ?.channel('notifications-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, 
+        () => {
+          // При любых изменениях перезагружаем уведомления
+          loadNotifications();
+        })
+      .subscribe();
+      
+    // Отписываемся при размонтировании компонента
+    return () => {
+      notificationsSubscription?.unsubscribe();
+    };
   }, [isInitialized, user]);
 
   // Mark as initialized after first load
@@ -414,13 +442,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(prev => [notification, ...prev]);
   };
 
-  const markNotificationRead = (id: string) => {
-    if (supabase) {
-      void supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  const markNotificationRead = async (id: string) => {
+    if (!supabase) return;
+    
+    try {
+      // Обновляем статус в базе данных
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+        
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+      
+      // Обновляем состояние в React
+      setNotifications(prev => prev.map(notif => 
+        notif.id === id ? { ...notif, isRead: true } : notif
+      ));
+      
+      console.log(`Notification ${id} marked as read`);
+    } catch (error) {
+      console.error('Error in markNotificationRead:', error);
     }
-    setNotifications(prev => prev.map(notif => 
-      notif.id === id ? { ...notif, isRead: true } : notif
-    ));
   };
 
   const moderateListing = async (id: string, action: 'approve' | 'reject', reason?: string) => {
@@ -548,6 +593,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log('Updating user role:', { userId, role });
   };
 
+  // Функция для массового отмечания уведомлений как прочитанных
+  const markAllNotificationsRead = async () => {
+    if (!supabase || !user) return;
+    
+    try {
+      // Получаем все непрочитанные уведомления пользователя
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+        
+      if (error) {
+        console.error('Error getting unread notifications:', error);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No unread notifications to mark');
+        return;
+      }
+      
+      // Обновляем все непрочитанные уведомления
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+        
+      if (updateError) {
+        console.error('Error marking all notifications as read:', updateError);
+        return;
+      }
+      
+      // Обновляем состояние в React
+      setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
+      
+      console.log(`Marked ${data.length} notifications as read`);
+    } catch (error) {
+      console.error('Error in markAllNotificationsRead:', error);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       servers,
@@ -566,6 +654,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       sendMessage,
       createReview,
       markNotificationRead,
+      markAllNotificationsRead,
       moderateListing,
       blockUser,
       updateUserRole

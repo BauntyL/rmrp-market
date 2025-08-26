@@ -66,9 +66,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   };
 
   const markAllAsRead = () => {
-    unreadNotifications.forEach(notification => {
-      markNotificationRead(notification.id);
-    });
+    const { markAllNotificationsRead } = useApp();
+    markAllNotificationsRead();
   };
 
   if (!isOpen) return null;
