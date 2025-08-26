@@ -425,8 +425,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const moderateListing = (id: string, action: 'approve' | 'reject', reason?: string) => {
     const listing = listings.find(l => l.id === id);
-    if (!listing) return;
+    if (!listing || !supabase) return;
 
+    // Обновляем статус в базе данных
+    void supabase
+      .from('listings')
+      .update({ 
+        status: action === 'approve' ? 'active' : 'rejected',
+        rejection_reason: reason,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .then(() => {
+        console.log(`Listing ${id} status updated to ${action === 'approve' ? 'active' : 'rejected'}`);
+      })
+      .catch(error => {
+        console.error('Error updating listing status:', error);
+      });
+
+    // Обновляем состояние в React
     setListings(prev => prev.map(listing => 
       listing.id === id 
         ? { 
