@@ -459,6 +459,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       // Перезагружаем объявления из базы данных для синхронизации
       await loadListingsFromDB();
+      
+      // Создаем уведомление о модерации
+      const createModerationNotification = () => {
+        if (!supabase) return;
+        const notif = {
+          user_id: listing.userId,
+          type: action === 'approve' ? 'listing_approved' : 'listing_rejected',
+          title: action === 'approve' ? 'Объявление одобрено' : 'Объявление отклонено',
+          message: action === 'approve' 
+            ? `Ваше объявление "${listing.title}" прошло модерацию и опубликовано`
+            : `Ваше объявление "${listing.title}" отклонено. Причина: ${reason || ''}`,
+          is_read: false,
+          related_id: id
+        };
+        void supabase
+          .from('notifications')
+          .insert(notif)
+          .select('*')
+          .single()
+          .then(({ data }: { data: any }) => {
+            if (!data) return;
+            const n: Notification = {
+              id: data.id,
+              userId: data.user_id,
+              type: data.type,
+              title: data.title,
+              message: data.message,
+              isRead: data.is_read,
+              createdAt: new Date(data.created_at),
+              relatedId: data.related_id || undefined
+            };
+            setNotifications(prev => [n, ...prev]);
+          });
+      };
+
+      createModerationNotification();
     } catch (error) {
       console.error('Error in moderateListing:', error);
     }
@@ -500,42 +536,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error in loadListingsFromDB:', error);
     }
-  };
-
-    const createModerationNotification = () => {
-      if (!supabase) return;
-      const notif = {
-        user_id: listing.userId,
-        type: action === 'approve' ? 'listing_approved' : 'listing_rejected',
-        title: action === 'approve' ? 'Объявление одобрено' : 'Объявление отклонено',
-        message: action === 'approve' 
-          ? `Ваше объявление "${listing.title}" прошло модерацию и опубликовано`
-          : `Ваше объявление "${listing.title}" отклонено. Причина: ${reason || ''}`,
-        is_read: false,
-        related_id: id
-      };
-      void supabase
-        .from('notifications')
-        .insert(notif)
-        .select('*')
-        .single()
-        .then(({ data }: { data: any }) => {
-          if (!data) return;
-          const n: Notification = {
-            id: data.id,
-            userId: data.user_id,
-            type: data.type,
-            title: data.title,
-            message: data.message,
-            isRead: data.is_read,
-            createdAt: new Date(data.created_at),
-            relatedId: data.related_id || undefined
-          };
-          setNotifications(prev => [n, ...prev]);
-        });
-    };
-
-    createModerationNotification();
   };
 
   const blockUser = (userId: string, duration: number) => {
