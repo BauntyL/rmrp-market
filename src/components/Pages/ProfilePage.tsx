@@ -11,7 +11,7 @@ interface ProfilePageProps {
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const { user, logout } = useAuth();
-  const { listings, servers, notifications, markNotificationRead } = useApp();
+  const { listings = [], servers = [], notifications = [], markNotificationRead } = useApp();
   const [activeTab, setActiveTab] = useState(() => {
     const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
     return urlParams.get('tab') || 'listings';
@@ -37,8 +37,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     );
   }
 
-  const userListings = listings.filter(listing => listing.userId === user.id);
-  const unreadNotifications = notifications.filter(n => !n.isRead);
+  // Проверяем, что все необходимые данные существуют
+  const userListings = Array.isArray(listings) ? listings.filter(listing => listing && listing.userId === user.id) : [];
+  const unreadNotifications = Array.isArray(notifications) ? notifications.filter(n => n && !n.isRead) : [];
 
   const tabs = [
     { id: 'listings', name: 'Мои объявления', icon: FileText, count: userListings.length },
@@ -80,6 +81,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     }
   };
 
+  // Добавляем проверку на наличие всех необходимых данных перед рендерингом
+  if (!user || !Array.isArray(listings) || !Array.isArray(notifications)) {
+    return (
+      <div className="min-h-screen pt-24 pb-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+              Загрузка данных...
+            </h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4">
@@ -96,15 +112,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                   {user.firstName} {user.lastName}
                 </h1>
                 <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-neutral-400 mb-4">
-                  <span>ID: {user.uniqueId}</span>
+                  <span>ID: {user.uniqueId || 'Н/Д'}</span>
                   <span>Роль: {user.role === 'admin' ? 'Администратор' : user.role === 'moderator' ? 'Модератор' : 'Пользователь'}</span>
-                  <span>Регистрация: {new Intl.DateTimeFormat('ru-RU').format(user.createdAt)}</span>
+                  <span>Регистрация: {user.createdAt ? new Intl.DateTimeFormat('ru-RU').format(user.createdAt) : 'Н/Д'}</span>
                 </div>
                 
                 {user.reviewCount > 0 && (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center">
-                      ⭐ <span className="ml-1 font-medium">{user.rating.toFixed(1)}</span>
+                      ⭐ <span className="ml-1 font-medium">{(user.rating || 0).toFixed(1)}</span>
                     </div>
                     <span className="text-slate-600 dark:text-neutral-400">
                       ({user.reviewCount} отзыв{user.reviewCount === 1 ? '' : user.reviewCount < 5 ? 'а' : 'ов'})
