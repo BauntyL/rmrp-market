@@ -1,99 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Server, Listing, User, Chat, Message, Review, Notification, AppContextType } from '../types';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Mock data
-const mockServers: Server[] = [
-  { id: 'arbat', name: 'arbat', displayName: 'Арбат' },
-  { id: 'patriki', name: 'patriki', displayName: 'Патрики' },
-  { id: 'rublevka', name: 'rublevka', displayName: 'Рублевка' },
-  { id: 'tverskoy', name: 'tverskoy', displayName: 'Тверской' }
-];
-
-const mockListings: Listing[] = [
-  {
-    id: '1',
-    title: 'BMW M5 F90',
-    description: 'Продаю BMW M5 F90 в отличном состоянии. Максимальная комплектация, тюнинг.',
-    price: 2500000,
-    currency: '₽',
-    category: 'Автомобили',
-    serverId: 'arbat',
-    userId: '1',
-    images: ['https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg'],
-    status: 'active',
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20')
-  },
-  {
-    id: '2',
-    title: 'Mercedes-Benz G63 AMG',
-    description: 'G-класс в топовой комплектации. Чёрный матовый цвет.',
-    price: 4200000,
-    currency: '₽',
-    category: 'Автомобили',
-    serverId: 'patriki',
-    userId: '1',
-    images: ['https://images.pexels.com/photos/1035108/pexels-photo-1035108.jpeg'],
-    status: 'active',
-    createdAt: new Date('2024-01-19'),
-    updatedAt: new Date('2024-01-19')
-  }
-];
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    uniqueId: '481-295',
-    firstName: 'Иван',
-    lastName: 'Петров',
-    password: 'password123',
-    role: 'user',
-    createdAt: new Date('2024-01-15'),
-    isBlocked: false,
-    rating: 4.5,
-    reviewCount: 12
-  },
-  {
-    id: '2',
-    uniqueId: '753-642',
-    firstName: 'Админ',
-    lastName: 'Системы',
-    password: 'admin123',
-    role: 'admin',
-    createdAt: new Date('2024-01-01'),
-    isBlocked: false,
-    rating: 5.0,
-    reviewCount: 0
-  }
-];
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    userId: '1',
-    type: 'listing_approved',
-    title: 'Объявление одобрено',
-    message: 'Ваше объявление "BMW M5 F90" прошло модерацию и опубликовано',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    relatedId: '1'
-  },
-  {
-    id: '2',
-    userId: '1',
-    type: 'new_message',
-    title: 'Новое сообщение',
-    message: 'Пользователь Админ Системы написал вам сообщение',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    relatedId: 'chat-1'
-  }
-];
-
-// Create some demo chats and messages
+// Create some demo chats and messages (kept only as fallback; DB will be source of truth)
 const mockChats: Chat[] = [
   {
     id: 'chat-1',
@@ -129,17 +41,146 @@ const mockMessages: Message[] = [
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [listings, setListings] = useState<Listing[]>(mockListings);
+  const [servers, setServers] = useState<Server[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(mockChats);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [reviews] = useState<Review[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Load servers from DB
+  useEffect(() => {
+    const loadServers = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('servers')
+        .select('*')
+        .order('display_name', { ascending: true });
+      if (data) {
+        const mapped: Server[] = data.map((s: any) => ({ id: s.id, name: s.name, displayName: s.display_name }));
+        setServers(mapped);
+      }
+    };
+    loadServers();
+  }, []);
+
+  // Load listings from DB
+  useEffect(() => {
+    const loadListings = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('listings')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) {
+        const mapped: Listing[] = data.map((l: any) => ({
+          id: l.id,
+          title: l.title,
+          description: l.description,
+          price: Number(l.price),
+          currency: l.currency,
+          category: l.category,
+          serverId: l.server_id,
+          userId: l.user_id,
+          images: Array.isArray(l.images) ? l.images : [],
+          status: l.status,
+          createdAt: new Date(l.created_at),
+          updatedAt: new Date(l.updated_at),
+          rejectionReason: l.rejection_reason || undefined
+        }));
+        setListings(mapped);
+      }
+    };
+    loadListings();
+  }, []);
+
+  // Load chats from DB
+  useEffect(() => {
+    const loadChats = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('chats')
+        .select('*')
+        .order('id', { ascending: false });
+      if (data) {
+        const mapped: Chat[] = data.map((c: any) => ({
+          id: c.id,
+          participants: c.participants || [],
+          listingId: c.listing_id || undefined,
+          unreadCount: c.unread_count || 0
+        }));
+        setChats(mapped);
+      }
+    };
+    loadChats();
+  }, []);
+
+  // Load messages from DB
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .order('timestamp', { ascending: true });
+      if (data) {
+        const mapped: Message[] = data.map((m: any) => ({
+          id: m.id,
+          chatId: m.chat_id,
+          senderId: m.sender_id,
+          content: m.content,
+          timestamp: new Date(m.timestamp)
+        }));
+        setMessages(mapped);
+
+        // Populate lastMessage in chats
+        setChats(prev => prev.map(chat => {
+          const last = mapped
+            .filter(m => m.chatId === chat.id)
+            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+            .slice(-1)[0];
+          return { ...chat, lastMessage: last };
+        }));
+      }
+    };
+    loadMessages();
+  }, []);
+
+  // Load notifications for current user
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!supabase) return;
+      if (!user) {
+        setNotifications([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (data) {
+        const mapped: Notification[] = data.map((n: any) => ({
+          id: n.id,
+          userId: n.user_id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          isRead: n.is_read,
+          createdAt: new Date(n.created_at),
+          relatedId: n.related_id || undefined
+        }));
+        setNotifications(mapped);
+      }
+    };
+    loadNotifications();
+  }, [user]);
 
   const createListing = (listingData: Omit<Listing, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) return;
 
-    const newListing: Listing = {
+    const optimistic: Listing = {
       ...listingData,
       id: Date.now().toString(),
       userId: user.id,
@@ -147,21 +188,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    setListings(prev => [optimistic, ...prev]);
 
-    setListings(prev => [newListing, ...prev]);
+    if (supabase) {
+      void supabase
+        .from('listings')
+        .insert({
+          title: listingData.title,
+          description: listingData.description,
+          price: listingData.price,
+          currency: listingData.currency,
+          category: listingData.category,
+          server_id: listingData.serverId,
+          user_id: user.id,
+          images: listingData.images,
+          status: 'pending'
+        })
+        .select('*')
+        .single()
+        .then(({ data }: { data: any }) => {
+          if (!data) return;
+          const saved: Listing = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            price: Number(data.price),
+            currency: data.currency,
+            category: data.category,
+            serverId: data.server_id,
+            userId: data.user_id,
+            images: Array.isArray(data.images) ? data.images : [],
+            status: data.status,
+            createdAt: new Date(data.created_at),
+            updatedAt: new Date(data.updated_at),
+            rejectionReason: data.rejection_reason || undefined
+          };
+          setListings(prev => [saved, ...prev.filter(l => l.id !== optimistic.id)]);
 
-    // Add notification for listing creation
-    const notification: Notification = {
-      id: Date.now().toString(),
-      userId: user.id,
-      type: 'listing_approved',
-      title: 'Объявление отправлено на модерацию',
-      message: `Ваше объявление "${listingData.title}" отправлено на проверку`,
-      isRead: false,
-      createdAt: new Date(),
-      relatedId: newListing.id
-    };
-    setNotifications(prev => [notification, ...prev]);
+          // Persist notification
+          void supabase
+            .from('notifications')
+            .insert({
+              user_id: user.id,
+              type: 'listing_approved',
+              title: 'Объявление отправлено на модерацию',
+              message: `Ваше объявление "${listingData.title}" отправлено на проверку`,
+              is_read: false,
+              related_id: saved.id
+            })
+            .select('*')
+            .single()
+            .then(({ data: notifData }: { data: any }) => {
+              if (!notifData) return;
+              const n: Notification = {
+                id: notifData.id,
+                userId: notifData.user_id,
+                type: notifData.type,
+                title: notifData.title,
+                message: notifData.message,
+                isRead: notifData.is_read,
+                createdAt: new Date(notifData.created_at),
+                relatedId: notifData.related_id || undefined
+              };
+              setNotifications(prev => [n, ...prev]);
+            });
+        });
+    }
   };
 
   const updateListing = (id: string, updates: Partial<Listing>) => {
@@ -170,31 +262,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? { ...listing, ...updates, updatedAt: new Date() }
         : listing
     ));
+
+    if (supabase) {
+      const toUpdate: any = {};
+      if (updates.title !== undefined) toUpdate.title = updates.title;
+      if (updates.description !== undefined) toUpdate.description = updates.description;
+      if (updates.price !== undefined) toUpdate.price = updates.price as number;
+      if (updates.currency !== undefined) toUpdate.currency = updates.currency;
+      if (updates.category !== undefined) toUpdate.category = updates.category;
+      if (updates.serverId !== undefined) toUpdate.server_id = updates.serverId;
+      if (updates.images !== undefined) toUpdate.images = updates.images;
+      if (updates.status !== undefined) toUpdate.status = updates.status;
+      void supabase
+        .from('listings')
+        .update({ ...toUpdate, updated_at: new Date().toISOString() })
+        .eq('id', id);
+    }
   };
 
   const deleteListing = (id: string) => {
     setListings(prev => prev.filter(listing => listing.id !== id));
+    if (supabase) {
+      void supabase.from('listings').delete().eq('id', id);
+    }
   };
 
   const createChat = (participants: string[], listingId?: string): Chat => {
-    // Check if chat already exists
-    const existingChat = chats.find(chat => 
-      chat.participants.length === participants.length &&
-      participants.every(p => chat.participants.includes(p))
-    );
-
-    if (existingChat) {
-      return existingChat;
-    }
-
     const newChat: Chat = {
       id: Date.now().toString(),
       participants,
       listingId,
       unreadCount: 0
     };
-
     setChats(prev => [newChat, ...prev]);
+
+    if (supabase) {
+      void supabase
+        .from('chats')
+        .insert({ participants, listing_id: listingId || null, unread_count: 0 })
+        .select('*')
+        .single()
+        .then();
+    }
+
     return newChat;
   };
 
@@ -210,8 +320,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setMessages(prev => [...prev, newMessage]);
-
-    // Update chat with last message
     setChats(prev => prev.map(chat => 
       chat.id === chatId 
         ? { 
@@ -222,24 +330,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         : chat
     ));
 
-    // Create notification for other participants
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
-      chat.participants.forEach(participantId => {
-        if (participantId !== user.id) {
-          const notification: Notification = {
-            id: `${Date.now()}-${participantId}`,
-            userId: participantId,
-            type: 'new_message',
-            title: 'Новое сообщение',
-            message: `${user.firstName} ${user.lastName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-            isRead: false,
-            createdAt: new Date(),
-            relatedId: chatId
-          };
-          setNotifications(prev => [notification, ...prev]);
-        }
-      });
+    if (supabase) {
+      void supabase
+        .from('messages')
+        .insert({ chat_id: chatId, sender_id: user.id, content })
+        .select('*')
+        .single()
+        .then(({ data }: { data: any }) => {
+          // Create notifications for other participants
+          const chat = chats.find(c => c.id === chatId);
+          const recipients = chat ? chat.participants.filter(p => p !== user.id) : [];
+          if (recipients.length > 0) {
+            const inserts = recipients.map(r => ({
+              user_id: r,
+              type: 'new_message',
+              title: 'Новое сообщение',
+              message: `${user.firstName} ${user.lastName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+              is_read: false,
+              related_id: chatId
+            }));
+            void supabase
+              .from('notifications')
+              .insert(inserts)
+              .select('*')
+              .then(({ data: notifRows }: { data: any[] | null }) => {
+                if (notifRows && notifRows.length) {
+                  const mapped = notifRows.map((n: any) => ({
+                    id: n.id,
+                    userId: n.user_id,
+                    type: n.type,
+                    title: n.title,
+                    message: n.message,
+                    isRead: n.is_read,
+                    createdAt: new Date(n.created_at),
+                    relatedId: n.related_id || undefined
+                  }));
+                  setNotifications(prev => [...mapped, ...prev]);
+                }
+              });
+          }
+        });
     }
   };
 
@@ -250,7 +380,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date()
     };
 
-    // Create notification for reviewed user
     const notification: Notification = {
       id: Date.now().toString(),
       userId: reviewData.toUserId,
@@ -265,6 +394,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const markNotificationRead = (id: string) => {
+    if (supabase) {
+      void supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    }
     setNotifications(prev => prev.map(notif => 
       notif.id === id ? { ...notif, isRead: true } : notif
     ));
@@ -285,20 +417,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         : listing
     ));
 
-    // Create notification for listing owner
-    const notification: Notification = {
-      id: Date.now().toString(),
-      userId: listing.userId,
-      type: action === 'approve' ? 'listing_approved' : 'listing_rejected',
-      title: action === 'approve' ? 'Объявление одобрено' : 'Объявление отклонено',
-      message: action === 'approve' 
-        ? `Ваше объявление "${listing.title}" прошло модерацию и опубликовано`
-        : `Ваше объявление "${listing.title}" отклонено. Причина: ${reason}`,
-      isRead: false,
-      createdAt: new Date(),
-      relatedId: id
+    const createModerationNotification = () => {
+      if (!supabase) return;
+      const notif = {
+        user_id: listing.userId,
+        type: action === 'approve' ? 'listing_approved' : 'listing_rejected',
+        title: action === 'approve' ? 'Объявление одобрено' : 'Объявление отклонено',
+        message: action === 'approve' 
+          ? `Ваше объявление "${listing.title}" прошло модерацию и опубликовано`
+          : `Ваше объявление "${listing.title}" отклонено. Причина: ${reason || ''}`,
+        is_read: false,
+        related_id: id
+      };
+      void supabase
+        .from('notifications')
+        .insert(notif)
+        .select('*')
+        .single()
+        .then(({ data }: { data: any }) => {
+          if (!data) return;
+          const n: Notification = {
+            id: data.id,
+            userId: data.user_id,
+            type: data.type,
+            title: data.title,
+            message: data.message,
+            isRead: data.is_read,
+            createdAt: new Date(data.created_at),
+            relatedId: data.related_id || undefined
+          };
+          setNotifications(prev => [n, ...prev]);
+        });
     };
-    setNotifications(prev => [notification, ...prev]);
+
+    createModerationNotification();
   };
 
   const blockUser = (userId: string, duration: number) => {
@@ -313,9 +465,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{
-      servers: mockServers,
+      servers,
       listings,
-      users: mockUsers,
+      users: [],
       chats,
       messages,
       reviews,
