@@ -16,79 +16,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const validateSession = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !user) return;
     
     try {
-      // First try to restore from localStorage
-      const storedUser = localStorage.getItem('rmrp_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser) as User;
-          // Verify user still exists and is not blocked
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', parsed.id)
-            .maybeSingle();
-            
-          if (profile && !profile.is_blocked) {
-            const mapped: User = {
-              id: profile.id,
-              uniqueId: profile.unique_id,
-              firstName: profile.first_name,
-              lastName: profile.last_name,
-              password: '',
-              role: profile.role,
-              createdAt: new Date(profile.created_at),
-              isBlocked: profile.is_blocked,
-              rating: profile.rating ?? 0,
-              reviewCount: profile.review_count ?? 0
-            };
-            setUser(mapped);
-            localStorage.setItem('rmrp_user', JSON.stringify(mapped));
-            return;
-          }
-        } catch (e) {
-          // Invalid stored data, clear it
-          localStorage.removeItem('rmrp_user');
-        }
-      }
-
-      // If no valid stored user, check Supabase session
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session || null;
-      
-      if (session) {
-        const authUser = session.user;
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .maybeSingle();
-          
-        if (profile && !profile.is_blocked) {
-          const mapped: User = {
-            id: profile.id,
-            uniqueId: profile.unique_id,
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-            password: '',
-            role: profile.role,
-            createdAt: new Date(profile.created_at),
-            isBlocked: profile.is_blocked,
-            rating: profile.rating ?? 0,
-            reviewCount: profile.review_count ?? 0
-          };
-          setUser(mapped);
-          localStorage.setItem('rmrp_user', JSON.stringify(mapped));
-        } else {
-          // User blocked or profile not found
-          setUser(null);
-          localStorage.removeItem('rmrp_user');
-          if (supabase) void supabase.auth.signOut();
-        }
-      } else {
-        // No active session
+      // Verify user still exists and is not blocked
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+        
+      if (!profile || profile.is_blocked) {
         setUser(null);
         localStorage.removeItem('rmrp_user');
       }
@@ -97,53 +35,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       localStorage.removeItem('rmrp_user');
     }
-  }, []);
+  }, [user]);
 
   // Validate session on mount only
   useEffect(() => {
     validateSession();
   }, [validateSession]);
-
-  // Keep session in sync across tabs and with Supabase Auth
-  useEffect(() => {
-    if (!supabase) return;
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: { id: string } } | null) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        if (profile && !profile.is_blocked) {
-          const mapped: User = {
-            id: profile.id,
-            uniqueId: profile.unique_id,
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-            password: '',
-            role: profile.role,
-            createdAt: new Date(profile.created_at),
-            isBlocked: profile.is_blocked,
-            rating: profile.rating ?? 0,
-            reviewCount: profile.review_count ?? 0
-          };
-          setUser(mapped);
-          localStorage.setItem('rmrp_user', JSON.stringify(mapped));
-        } else {
-          setUser(null);
-          localStorage.removeItem('rmrp_user');
-        }
-      } else {
-        setUser(null);
-        localStorage.removeItem('rmrp_user');
-      }
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
 
   const generateUniqueId = (): string => {
     const num1 = Math.floor(Math.random() * 900) + 100;
@@ -252,7 +149,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     try { localStorage.removeItem('rmrp_user'); } catch {}
-    if (supabase) void supabase.auth.signOut();
   };
 
   return (
