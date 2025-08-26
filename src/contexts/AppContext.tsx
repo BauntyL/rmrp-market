@@ -48,9 +48,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [reviews] = useState<Review[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load servers from DB
+  // Load servers from DB (only once)
   useEffect(() => {
+    if (isInitialized) return;
     const loadServers = async () => {
       if (!supabase) return;
       const { data } = await supabase
@@ -63,10 +65,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadServers();
-  }, []);
+  }, [isInitialized]);
 
-  // Load listings from DB
+  // Load listings from DB (only once)
   useEffect(() => {
+    if (isInitialized) return;
     const loadListings = async () => {
       if (!supabase) return;
       const { data } = await supabase
@@ -93,10 +96,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadListings();
-  }, []);
+  }, [isInitialized]);
 
-  // Load chats from DB
+  // Load chats from DB (only once)
   useEffect(() => {
+    if (isInitialized) return;
     const loadChats = async () => {
       if (!supabase) return;
       const { data } = await supabase
@@ -114,10 +118,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadChats();
-  }, []);
+  }, [isInitialized]);
 
-  // Load messages from DB
+  // Load messages from DB (only once)
   useEffect(() => {
+    if (isInitialized) return;
     const loadMessages = async () => {
       if (!supabase) return;
       const { data } = await supabase
@@ -145,16 +150,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadMessages();
-  }, []);
+  }, [isInitialized]);
 
-  // Load notifications for current user
+  // Load notifications for current user (when user changes)
   useEffect(() => {
+    if (!isInitialized || !user) {
+      setNotifications([]);
+      return;
+    }
     const loadNotifications = async () => {
       if (!supabase) return;
-      if (!user) {
-        setNotifications([]);
-        return;
-      }
       const { data } = await supabase
         .from('notifications')
         .select('*')
@@ -175,10 +180,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadNotifications();
-  }, [user]);
+  }, [isInitialized, user]);
+
+  // Mark as initialized after first load
+  useEffect(() => {
+    if (!isInitialized) {
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
 
   const createListing = (listingData: Omit<Listing, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) return;
+
+    // Check if listing already exists to prevent duplicates
+    const existingListing = listings.find(l => 
+      l.title === listingData.title && 
+      l.userId === user.id && 
+      l.status === 'pending'
+    );
+    if (existingListing) return;
 
     const optimistic: Listing = {
       ...listingData,

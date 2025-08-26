@@ -9,8 +9,7 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    email: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -22,8 +21,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     setIsLoading(true);
 
     try {
-      const success = await login(formData.firstName, formData.lastName, formData.password);
-      
+      const success = await login(formData.email, formData.password);
       if (success) {
         onNavigate('home');
       } else {
@@ -56,29 +54,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Имя
+                  Email
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="Введите имя"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Фамилия
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
-                  placeholder="Введите фамилию"
+                  placeholder="you@example.com"
                 />
               </div>
 
@@ -121,15 +105,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                   Зарегистрируйтесь
                 </button>
               </p>
-            </div>
-
-            {/* Demo credentials */}
-            <div className="mt-8 p-4 bg-slate-50 dark:bg-neutral-700 rounded-xl">
-              <h3 className="font-medium text-slate-900 dark:text-white mb-2">Демо-аккаунты:</h3>
-              <div className="text-sm text-slate-600 dark:text-neutral-400 space-y-1">
-                <div>Пользователь: Иван / Петров / password123</div>
-                <div>Админ: Админ / Системы / admin123</div>
-              </div>
             </div>
           </div>
         </div>

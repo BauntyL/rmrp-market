@@ -9,6 +9,7 @@ interface RegisterPageProps {
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
   const { register } = useAuth();
   const [formData, setFormData] = useState({
+    email: '',
     firstName: '',
     lastName: '',
     password: '',
@@ -40,12 +41,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     setIsLoading(true);
 
     try {
-      const success = await register(formData.firstName, formData.lastName, formData.password);
+      const success = await register(formData.email, formData.firstName, formData.lastName, formData.password);
       
       if (success) {
         onNavigate('home');
       } else {
-        setError('Пользователь с таким именем уже существует');
+        setError('Пользователь с таким email уже существует или регистрация отклонена');
       }
     } catch (err) {
       setError('Произошла ошибка при регистрации');
@@ -72,6 +73,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-neutral-600"
+                  placeholder="you@example.com"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
                   Имя
