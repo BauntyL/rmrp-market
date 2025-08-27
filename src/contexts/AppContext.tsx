@@ -522,13 +522,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const clearNotifications = async () => {
     if (!user || !supabase) return;
     
-    setNotifications([]);
-    
     try {
-      await supabase
+      const { error } = await supabase
         .from('notifications')
         .delete()
-        .eq('user_id', user.id);
+        .match({ user_id: user.id });
+        
+      if (error) {
+        console.error('Error clearing notifications:', error);
+        return;
+      }
+      
+      setNotifications([]);
     } catch (error) {
       console.error('Error clearing notifications:', error);
     }
