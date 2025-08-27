@@ -152,7 +152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               console.log('Duplicate message prevented:', newMessage.id);
               return prev;
             }
-            console.log('Adding new message to state:', newMessage.id);
+            console.log('Adding new message to state:', newMessage.id, 'from sender:', newMessage.senderId);
             return [...prev, newMessage];
           });
           
