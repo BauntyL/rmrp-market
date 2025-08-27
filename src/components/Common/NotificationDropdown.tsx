@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, Check, MessageCircle, Star, FileText, Shield, Trash2 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { Notification } from '../../types';
@@ -16,9 +16,33 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 }) => {
   const { notifications, markNotificationRead, clearNotifications, markAllNotificationsRead } = useApp();
   const [hoveredNotification, setHoveredNotification] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadNotifications = notifications.filter(n => !n.isRead);
   const recentNotifications = notifications.slice(0, 10);
+  
+  // Закрываем dropdown при клике вне его области
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isOpen && 
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    // Добавляем обработчик только если dropdown открыт
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Удаляем обработчик при закрытии или размонтировании
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -72,7 +96,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 z-50">
+    <div 
+      ref={dropdownRef}
+      className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 z-50"
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-neutral-700">
         <h3 className="font-bold text-slate-900 dark:text-white">
