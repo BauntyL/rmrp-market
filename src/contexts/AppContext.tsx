@@ -360,6 +360,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const loadChatMessages = async (chatId: string) => {
     if (!supabase) return;
     
+    // Check if chat still exists before loading messages
+    try {
+      const { data: chatExists } = await supabase
+        .from('chats')
+        .select('id')
+        .eq('id', chatId)
+        .single();
+      
+      if (!chatExists) {
+        console.log(`Chat ${chatId} no longer exists, removing from local state`);
+        setChats(prev => prev.filter(chat => chat.id !== chatId));
+        setMessages(prev => prev.filter(msg => msg.chatId !== chatId));
+        return;
+      }
+    } catch (error) {
+      console.log(`Chat ${chatId} not found, removing from local state`);
+      setChats(prev => prev.filter(chat => chat.id !== chatId));
+      setMessages(prev => prev.filter(msg => msg.chatId !== chatId));
+      return;
+    }
+    
     try {
       const { data } = await supabase
         .from('messages')
