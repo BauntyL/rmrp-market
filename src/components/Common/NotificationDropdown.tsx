@@ -14,7 +14,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   onClose, 
   onNavigate 
 }) => {
-  const { notifications, markNotificationRead, clearNotifications } = useApp();
+  const { notifications, markNotificationRead, clearNotifications, markAllNotificationsRead } = useApp();
   const [hoveredNotification, setHoveredNotification] = useState<string | null>(null);
 
   const unreadNotifications = notifications.filter(n => !n.isRead);
@@ -66,7 +66,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   };
 
   const markAllAsRead = () => {
-    const { markAllNotificationsRead } = useApp();
     markAllNotificationsRead();
   };
 

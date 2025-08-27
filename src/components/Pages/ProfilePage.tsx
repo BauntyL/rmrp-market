@@ -12,7 +12,7 @@ interface ProfilePageProps {
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const { user, logout } = useAuth();
-  const { listings = [], servers = [], notifications = [], markNotificationRead } = useApp();
+  const { listings = [], servers = [], notifications = [], markNotificationRead, markAllNotificationsRead } = useApp();
   const [activeTab, setActiveTab] = useState(() => {
     const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
     return urlParams.get('tab') || 'listings';
