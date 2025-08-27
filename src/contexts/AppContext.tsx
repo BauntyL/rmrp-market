@@ -187,7 +187,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ]);
         
         if (notificationsResult.data) {
-          setNotifications(notificationsResult.data.map((n: any) => ({
+          // Filter out soft-deleted notifications (those with [DELETED] prefix)
+          const activeNotifications = notificationsResult.data.filter((n: any) => 
+            !n.title?.startsWith('[DELETED]') && !n.message?.startsWith('[DELETED]')
+          );
+          
+          setNotifications(activeNotifications.map((n: any) => ({
             id: n.id,
             userId: n.user_id,
             type: n.type,
@@ -527,41 +532,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearNotifications = async () => {
     if (!user || !supabase) return;
+    
     try {
-      // Try deleting by eq and return deleted rows for verification
-      const { data, error, status } = await supabase
+      // First, try physical deletion from database
+      const { data, error, count } = await supabase
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
         .select('*');
 
       if (error) {
-        console.error('Error clearing notifications (eq):', error, { status });
-      }
-
-      // If no rows were returned, try fallback delete by ids we currently have
-      if ((!data || data.length === 0) && notifications.length > 0) {
-        const ids = notifications.map(n => n.id).filter(Boolean);
-        if (ids.length > 0) {
-          const { data: data2, error: error2 } = await supabase
+        console.error('❌ Database deletion failed:', error);
+        console.log('🔄 Using soft delete fallback (marking as [DELETED])');
+        
+        // Fallback: soft delete by updating notifications with [DELETED] prefix
+        const userNotifications = notifications.filter(n => n.userId === user.id);
+        const softDeletePromises = userNotifications.map(notification => 
+          supabase
             .from('notifications')
-            .delete()
-            .in('id', ids)
-            .select('*');
-          if (error2) {
-            console.error('Fallback delete by ids failed:', error2);
-          } else {
-            console.log('Fallback deleted notifications:', data2?.length || 0);
-          }
-        }
+            .update({ 
+              title: `[DELETED] ${notification.title}`,
+              message: `[DELETED] ${notification.message}`,
+              is_read: true 
+            })
+            .eq('id', notification.id)
+        );
+        
+        await Promise.all(softDeletePromises);
+        console.log(`🟡 Soft deleted ${userNotifications.length} notifications`);
       } else {
-        console.log('Deleted notifications (eq):', data?.length || 0);
+        console.log(`✅ Successfully DELETED ${data?.length || count || 0} notifications from database`);
       }
 
-      // Refresh local state by removing any notifications for the user
+      // Always clear from local state regardless of deletion method
       setNotifications(prev => prev.filter(n => n.userId !== user.id));
+      
     } catch (err) {
-      console.error('Error clearing notifications (exception):', err);
+      console.error('❌ Critical error clearing notifications:', err);
+      // Even on error, clear local state to improve UX
+      setNotifications(prev => prev.filter(n => n.userId !== user.id));
     }
   };
 
