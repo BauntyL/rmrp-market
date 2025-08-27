@@ -107,12 +107,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .on('postgres_changes', { 
         event: 'INSERT',
         schema: 'public',
-        table: 'chats',
-        filter: `participants=cs.{${user.id}}`
+        table: 'chats'
       }, (payload: any) => {
+        // Ensure the chat actually includes the current user before adding
+        const participants = payload.new.participants || [];
+        if (!Array.isArray(participants) || !participants.includes(user.id)) return;
+
         const newChat = {
           id: payload.new.id,
-          participants: payload.new.participants || [],
+          participants,
           listingId: payload.new.listing_id,
           unreadCount: payload.new.unread_count || 0
         };
@@ -176,10 +179,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false }),
+          // Do not rely on server-side array contains filter (may cause REST 400).
+          // Fetch chats and filter locally for robustness across Supabase/PostgREST versions.
           supabase!
             .from('chats')
             .select('*')
-            .contains('participants', [user.id])
             .order('created_at', { ascending: false })
         ]);
         
@@ -197,12 +201,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
         if (chatsResult.data) {
-          setChats(chatsResult.data.map((c: any) => ({
-            id: c.id,
-            participants: c.participants || [],
-            listingId: c.listing_id,
-            unreadCount: c.unread_count || 0
-          })));
+          // Keep only chats where current user is a participant
+          setChats(chatsResult.data
+            .filter((c: any) => Array.isArray(c.participants) && c.participants.includes(user.id))
+            .map((c: any) => ({
+              id: c.id,
+              participants: c.participants || [],
+              listingId: c.listing_id,
+              unreadCount: c.unread_count || 0
+            })));
         }
       } catch (error) {
         console.error('Error loading user data:', error);
