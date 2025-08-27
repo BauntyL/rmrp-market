@@ -155,53 +155,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!supabase) return;
       const { data } = await supabase
         .from('servers')
-        return (
-          <AppContext.Provider
-            value={{
-              servers,
-              listings,
-              users,
-              chats,
-              messages,
-              reviews,
-              notifications,
-              selectedServer,
-              setSelectedServer,
-              getUserById: (id: string) => users.find(u => u.id === id),
-              createListing,
-              updateListing,
-              deleteListing,
-              createChat,
-              sendMessage,
-              editMessage,
-              deleteMessage,
-              markMessageRead,
-              blockUserByMe,
-              createReview,
-              markNotificationRead,
-              markAllNotificationsRead,
-              clearNotifications,
-              moderateListing,
-              blockUser,
-              updateUserRole,
-              typingUsers,
-              setTyping,
-              clearTyping,
-              blockedUserIds
-            }}
-          >
-            {children}
-          </AppContext.Provider>
-        );
-          status: l.status,
-          createdAt: new Date(l.created_at),
-          updatedAt: new Date(l.updated_at),
-          rejectionReason: l.rejection_reason || undefined
-        }));
-        setListings(mapped);
+        .select('*')
+        .order('display_name', { ascending: true });
+      if (data) {
+        const mapped: Server[] = data.map((s: any) => ({ id: s.id, name: s.name, displayName: s.display_name }));
+        setServers(mapped);
       }
     };
-    loadListings();
+    loadServers();
   }, [isInitialized]);
 
   // Load chats from DB (only once)
