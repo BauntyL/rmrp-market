@@ -6,6 +6,7 @@ ALTER TABLE public.messages
 ADD COLUMN IF NOT EXISTS attachment_url text,
 ADD COLUMN IF NOT EXISTS is_edited boolean NOT NULL DEFAULT false,
 ADD COLUMN IF NOT EXISTS is_deleted boolean NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS is_system boolean NOT NULL DEFAULT false,
 ADD COLUMN IF NOT EXISTS read_by uuid[] NOT NULL DEFAULT '{}';
 
 -- Create blocked users table

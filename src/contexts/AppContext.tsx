@@ -143,7 +143,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             readBy: payload.new.read_by || [],
             attachmentUrl: payload.new.attachment_url,
             isEdited: payload.new.is_edited || false,
-            isDeleted: payload.new.is_deleted || false
+            isDeleted: payload.new.is_deleted || false,
+            isSystem: payload.new.is_system || false
           };
           
           // Avoid duplicate messages
@@ -327,9 +328,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
   
   const createChat = async (participants: string[], listingId?: string): Promise<Chat | null> => {
-    if (!supabase) return null;
+    if (!supabase || !user) return null;
     
     try {
+      // Check if chat already exists between these participants
+      // Sort participants to ensure consistent matching regardless of order
+      const sortedParticipants = [...participants].sort();
+      
+      const { data: existingChats, error: searchError } = await supabase
+        .from('chats')
+        .select('*');
+        
+      let foundChat = null;
+      if (existingChats) {
+        foundChat = existingChats.find(chat => {
+          const chatParticipants = [...(chat.participants || [])].sort();
+          return chatParticipants.length === sortedParticipants.length &&
+                 chatParticipants.every((p, i) => p === sortedParticipants[i]);
+        });
+      }
+        
+      if (searchError) {
+        console.error('Error searching for existing chat:', searchError);
+      }
+      
+      // If exact match found, return existing chat
+      if (foundChat) {
+        const chat: Chat = {
+          id: foundChat.id,
+          participants: foundChat.participants,
+          listingId: foundChat.listing_id,
+          unreadCount: foundChat.unread_count || 0
+        };
+        
+        // Add to local state if not already present
+        setChats(prev => {
+          if (prev.find(c => c.id === chat.id)) {
+            return prev;
+          }
+          return [...prev, chat];
+        });
+        
+        console.log(`Found existing chat ${chat.id} between participants`);
+        return chat;
+      }
+      
+      // No existing chat found, create new one
       const { data, error } = await supabase
         .from('chats')
         .insert({
@@ -350,6 +394,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       setChats(prev => [...prev, newChat]);
+      console.log(`Created new chat ${newChat.id} between participants`);
+      
+      // If listing is provided, send initial message with listing info
+      if (listingId) {
+        const listing = listings.find(l => l.id === listingId);
+        const server = servers.find(s => s.id === listing?.serverId);
+        
+        if (listing) {
+          const listingOwner = getUserById(listing.userId);
+          const isCurrentUserSeller = listing.userId === user.id;
+          
+          if (isCurrentUserSeller) {
+            // Send info message to seller about the inquiry
+            const buyerUser = getUserById(participants.find(p => p !== user.id) || '');
+            const infoMessage = `📋 Запрос по объявлению:
+"${listing.title}"
+💰 Цена: ${listing.price}₽
+🎮 Сервер: ${server?.displayName || 'Неизвестно'}
+👤 Покупатель: ${buyerUser?.firstName} ${buyerUser?.lastName}
+
+Ответьте покупателю для обсуждения деталей сделки.`;
+
+            await supabase
+              .from('messages')
+              .insert({
+                chat_id: newChat.id,
+                sender_id: user.id,
+                content: infoMessage,
+                is_system: true
+              });
+          }
+        }
+      }
+      
       return newChat;
     } catch (error) {
       console.error('Error creating chat:', error);
@@ -402,6 +480,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               timestamp: new Date(m.timestamp || m.created_at),
               isEdited: m.is_edited || false,
               isDeleted: m.is_deleted || false,
+              isSystem: m.is_system || false,
               readBy: m.read_by || [],
               attachmentUrl: m.attachment_url
             }));

@@ -182,11 +182,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     </form>
                   ) : (
                     <>
-                      <p className="text-sm break-words whitespace-pre-wrap">
+                      <p className={`text-sm break-words whitespace-pre-wrap ${
+                        message.isSystem ? 'bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border-l-4 border-blue-500 text-blue-800 dark:text-blue-200' : ''
+                      }`}>
                         {message.content}
                         {message.isEdited && <span className="ml-2 text-xs italic opacity-60">(изменено)</span>}
                       </p>
-                      {isOwn && !message.isDeleted && (
+                      {isOwn && !message.isDeleted && !message.isSystem && (
                         <div className="absolute top-1 right-1 flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
                           <button
                             className="p-1 hover:bg-black/10 rounded"

@@ -47,6 +47,7 @@ export interface Message {
   attachmentUrl?: string; // ссылка на файл/картинку, если есть вложение
   isEdited?: boolean;
   isDeleted?: boolean;
+  isSystem?: boolean; // системное сообщение с информацией об объявлении
   readBy?: string[]; // id пользователей, которые прочитали
 }
 
