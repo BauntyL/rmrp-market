@@ -853,7 +853,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       {children}
     </AppContext.Provider>
   );
-// конец AppProvider
+}
 
 export const useApp = (): AppContextType => {
   const context = useContext(AppContext);
