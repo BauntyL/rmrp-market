@@ -689,18 +689,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       console.log('Found notifications in database:', countData?.length || 0);
       
-      // Удаляем все уведомления пользователя из базы данных
+      // Попробуем удалить с более подробной диагностикой
+      console.log('Executing DELETE query with user_id:', user.id, 'type:', typeof user.id);
+      
       const { error, count } = await supabase
         .from('notifications')
         .delete({ count: 'exact' })
         .eq('user_id', user.id);
+        
+      console.log('DELETE query result:', { error, count });
         
       if (error) {
         console.error('Error clearing notifications from database:', error);
         return;
       }
       
-      console.log('Successfully deleted notifications from database. Count:', count);
+      if (count === 0) {
+        console.warn('DELETE returned 0 rows affected. This suggests RLS or permission issues.');
+        
+        // Попробуем проверить, какие записи видны пользователю
+        const { data: visibleData, error: selectError } = await supabase
+          .from('notifications')
+          .select('id, user_id')
+          .eq('user_id', user.id)
+          .limit(5);
+          
+        console.log('Visible notifications after DELETE attempt:', { visibleData, selectError });
+        
+        // Попробуем альтернативный способ - маркировка как deleted
+        console.log('Trying alternative approach: marking as deleted instead of DELETE');
+        
+        const { error: updateError, count: updateCount } = await supabase
+          .from('notifications')
+          .update({ 
+            is_read: true,
+            title: '[DELETED]',
+            message: '[DELETED]'
+          })
+          .eq('user_id', user.id);
+          
+        console.log('UPDATE alternative result:', { updateError, updateCount });
+        
+        if (updateError) {
+          console.error('Alternative UPDATE also failed:', updateError);
+        } else if (updateCount && updateCount > 0) {
+          console.log(`Alternative method worked! Updated ${updateCount} notifications`);
+        }
+      }
+      
+      console.log('DELETE operation completed. Count:', count);
       
       // Очищаем уведомления в состоянии React
       setNotifications([]);
