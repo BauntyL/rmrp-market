@@ -56,9 +56,20 @@ function App() {
     }
   };
 
+  const [isReady, setIsReady] = useState(false);
+
+  // Initialize app after mount
+  React.useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return null; // Or a loading spinner
+  }
+
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider>
         <AppProvider>
           <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300">
             <Header currentPage={currentPage} onNavigate={navigate} />
@@ -68,8 +79,8 @@ function App() {
             <Footer />
           </div>
         </AppProvider>
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

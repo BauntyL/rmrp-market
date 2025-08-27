@@ -1,0 +1,367 @@
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { Server, Listing, User, Chat, Message, Review, Notification, AppContextType } from '../types';
+import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabaseClient';
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const initialChats: Chat[] = [];
+const initialMessages: Message[] = [];
+
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize state
+  const [servers, setServers] = useState<Server[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedServer, setSelectedServer] = useState<string | null>(null);
+  const [chats, setChats] = useState<Chat[]>(initialChats);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({});
+
+  // Initialize data
+  useEffect(() => {
+    const loadData = async () => {
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const [serversResult, usersResult] = await Promise.all([
+          supabase
+            .from('servers')
+            .select('*')
+            .order('display_name', { ascending: true }),
+          supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false })
+        ]);
+        
+        if (serversResult.data) {
+          setServers(serversResult.data.map((s: any) => ({ 
+            id: s.id, 
+            name: s.name, 
+            displayName: s.display_name 
+          })));
+        }
+        
+        if (usersResult.data) {
+          setUsers(usersResult.data.map((u: any) => ({
+            id: u.id,
+            uniqueId: u.unique_id,
+            firstName: u.first_name,
+            lastName: u.last_name,
+            password: '',
+            role: u.role || 'user',
+            createdAt: new Date(u.created_at),
+            isBlocked: u.is_blocked || false,
+            rating: u.rating || 0,
+            reviewCount: u.review_count || 0
+          })));
+        }
+        
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadData();
+  }, []);
+
+  // Load user-specific data
+  useEffect(() => {
+    if (!user || !supabase) return;
+
+    const loadUserData = async () => {
+      try {
+        const [notificationsResult, chatsResult] = await Promise.all([
+          supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('chats')
+            .select('*')
+            .order('created_at', { ascending: false })
+        ]);
+        
+        if (notificationsResult.data) {
+          setNotifications(notificationsResult.data.map((n: any) => ({
+            id: n.id,
+            userId: n.user_id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            isRead: n.is_read,
+            createdAt: new Date(n.created_at),
+            relatedId: n.related_id
+          })));
+        }
+        
+        if (chatsResult.data) {
+          setChats(chatsResult.data.map((c: any) => ({
+            id: c.id,
+            participants: c.participants || [],
+            listingId: c.listing_id,
+            unreadCount: c.unread_count || 0
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    void loadUserData();
+  }, [user]);
+
+  // App functions
+  const getUserById = (id: string) => users.find(u => u.id === id);
+  
+  const createChat = (participants: string[], listingId?: string) => {
+    const newChat: Chat = {
+      id: Date.now().toString(),
+      participants,
+      listingId,
+      unreadCount: 0
+    };
+    setChats(prev => [...prev, newChat]);
+    
+    if (supabase) {
+      void supabase
+        .from('chats')
+        .insert({
+          participants,
+          listing_id: listingId,
+          unread_count: 0
+        });
+    }
+    
+    return newChat;
+  };
+  
+  const sendMessage = async (chatId: string, content: string) => {
+    if (!user) return;
+    
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      chatId,
+      senderId: user.id,
+      content,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+    
+    if (supabase) {
+      void supabase
+        .from('messages')
+        .insert({
+          chat_id: chatId,
+          sender_id: user.id,
+          content
+        });
+    }
+  };
+  
+  const editMessage = async (messageId: string, newContent: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, content: newContent, isEdited: true } : m
+    ));
+    
+    if (supabase) {
+      void supabase
+        .from('messages')
+        .update({ content: newContent, is_edited: true })
+        .eq('id', messageId);
+    }
+  };
+  
+  const deleteMessage = async (messageId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, content: '', isDeleted: true } : m
+    ));
+    
+    if (supabase) {
+      void supabase
+        .from('messages')
+        .update({ content: '', is_deleted: true })
+        .eq('id', messageId);
+    }
+  };
+  
+  const markMessageRead = async (messageId: string) => {
+    if (!user) return;
+    
+    setMessages(prev => prev.map(m =>
+      m.id === messageId
+        ? { ...m, readBy: m.readBy ? [...m.readBy, user.id] : [user.id] }
+        : m
+    ));
+    
+    if (supabase) {
+      void supabase
+        .from('messages')
+        .update({ read_by: [user.id] })
+        .eq('id', messageId);
+    }
+  };
+  
+  const createReview = (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
+    const newReview: Review = {
+      ...reviewData,
+      id: Date.now().toString(),
+      createdAt: new Date()
+    };
+    
+    setReviews(prev => [...prev, newReview]);
+    
+    if (supabase) {
+      void supabase
+        .from('reviews')
+        .insert({
+          to_user_id: reviewData.toUserId,
+          from_user_id: reviewData.fromUserId,
+          rating: reviewData.rating,
+          content: reviewData.content
+        });
+    }
+    
+    const notification: Notification = {
+      id: Date.now().toString(),
+      userId: reviewData.toUserId,
+      type: 'new_review',
+      title: 'Новый отзыв',
+      message: `Вы получили новый отзыв с оценкой ${reviewData.rating}/5`,
+      isRead: false,
+      createdAt: new Date(),
+      relatedId: newReview.id
+    };
+    
+    setNotifications(prev => [...prev, notification]);
+  };
+  
+  const markNotificationRead = async (id: string) => {
+    setNotifications(prev => prev.map(n =>
+      n.id === id ? { ...n, isRead: true } : n
+    ));
+    
+    if (supabase) {
+      void supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+    }
+  };
+  
+  const createListing = (listing: Omit<Listing, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!user) return;
+    
+    const newListing: Listing = {
+      ...listing,
+      id: Date.now().toString(),
+      userId: user.id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setListings(prev => [...prev, newListing]);
+    
+    if (supabase) {
+      void supabase
+        .from('listings')
+        .insert({
+          title: listing.title,
+          description: listing.description,
+          price: listing.price,
+          currency: listing.currency,
+          category: listing.category,
+          server_id: listing.serverId,
+          user_id: user.id,
+          images: listing.images,
+          status: 'pending'
+        });
+    }
+  };
+  
+  const updateListing = (id: string, updates: Partial<Listing>) => {
+    setListings(prev => prev.map(l => 
+      l.id === id ? { ...l, ...updates, updatedAt: new Date() } : l
+    ));
+    
+    if (supabase) {
+      void supabase
+        .from('listings')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+    }
+  };
+  
+  const deleteListing = (id: string) => {
+    setListings(prev => prev.filter(l => l.id !== id));
+    
+    if (supabase) {
+      void supabase
+        .from('listings')
+        .delete()
+        .eq('id', id);
+    }
+  };
+
+  if (isLoading) {
+    return null;
+  }
+
+  return (
+    <AppContext.Provider
+      value={{
+        servers,
+        listings,
+        users,
+        chats,
+        messages,
+        reviews,
+        notifications,
+        selectedServer,
+        setSelectedServer,
+        getUserById,
+        createListing,
+        updateListing,
+        deleteListing,
+        createChat,
+        sendMessage,
+        editMessage,
+        deleteMessage,
+        markMessageRead,
+        createReview,
+        markNotificationRead,
+        typingUsers,
+        clearNotifications: async () => {}, // TODO: Implement
+        markAllNotificationsRead: async () => {} // TODO: Implement
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = (): AppContextType => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
