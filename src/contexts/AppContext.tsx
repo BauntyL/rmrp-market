@@ -528,21 +528,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearNotifications = async () => {
     if (!user || !supabase) return;
-    
     try {
-      const { error } = await supabase
+      // Try deleting by eq and return deleted rows for verification
+      const { data, error, status } = await supabase
         .from('notifications')
         .delete()
-        .match({ user_id: user.id });
-        
+        .eq('user_id', user.id)
+        .select('*');
+
       if (error) {
-        console.error('Error clearing notifications:', error);
-        return;
+        console.error('Error clearing notifications (eq):', error, { status });
       }
-      
-      setNotifications([]);
-    } catch (error) {
-      console.error('Error clearing notifications:', error);
+
+      // If no rows were returned, try fallback delete by ids we currently have
+      if ((!data || data.length === 0) && notifications.length > 0) {
+        const ids = notifications.map(n => n.id).filter(Boolean);
+        if (ids.length > 0) {
+          const { data: data2, error: error2 } = await supabase
+            .from('notifications')
+            .delete()
+            .in('id', ids)
+            .select('*');
+          if (error2) {
+            console.error('Fallback delete by ids failed:', error2);
+          } else {
+            console.log('Fallback deleted notifications:', data2?.length || 0);
+          }
+        }
+      } else {
+        console.log('Deleted notifications (eq):', data?.length || 0);
+      }
+
+      // Refresh local state by removing any notifications for the user
+      setNotifications(prev => prev.filter(n => n.userId !== user.id));
+    } catch (err) {
+      console.error('Error clearing notifications (exception):', err);
     }
   };
 
