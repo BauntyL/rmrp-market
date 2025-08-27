@@ -1,5 +1,3 @@
-  blockedUserIds: string[];
-  blockUserByMe: (userId: string) => Promise<void>;
 // User types
 export interface User {
   id: string;
@@ -122,4 +120,6 @@ export interface AppContextType {
   setTyping: (chatId: string) => void;
   clearTyping: (chatId: string, userId: string) => void;
   loadChatMessages: (chatId: string) => Promise<void>;
+  blockedUserIds: string[];
+  blockUserByMe: (userId: string) => Promise<void>;
 }

@@ -22,6 +22,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({});
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
 
   // Initialize data
   useEffect(() => {
@@ -185,6 +186,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .from('chats')
             .select('*')
         ]);
+
+        // Try to load blocked users (table may not exist yet)
+        try {
+          const blockedUsersResult = await supabase!
+            .from('blocked_users')
+            .select('blocked_id')
+            .eq('blocker_id', user.id);
+          
+          if (blockedUsersResult.data) {
+            setBlockedUserIds(blockedUsersResult.data.map((b: any) => b.blocked_id));
+          }
+        } catch (error) {
+          console.log('Blocked users table not found - skipping');
+        }
         
         if (notificationsResult.data) {
           // Filter out soft-deleted notifications (those with [DELETED] prefix)
@@ -350,16 +365,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const sendMessage = async (chatId: string, content: string) => {
+  const sendMessage = async (chatId: string, content: string, attachment?: File | null) => {
     if (!user || !supabase) return;
     
     try {
+      let attachmentUrl = null;
+      
+      // Handle file upload if attachment exists
+      if (attachment) {
+        const fileExt = attachment.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `chat-attachments/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(filePath, attachment);
+          
+        if (uploadError) {
+          console.error('Error uploading attachment:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(filePath);
+          attachmentUrl = publicUrl;
+        }
+      }
+
       const { data, error } = await supabase
         .from('messages')
         .insert({
           chat_id: chatId,
           sender_id: user.id,
-          content
+          content,
+          attachment_url: attachmentUrl
         })
         .select()
         .single();
@@ -373,13 +411,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           senderId: data.sender_id,
           content: data.content,
           timestamp: new Date(data.created_at),
-          readBy: []
+          readBy: [],
+          attachmentUrl: data.attachment_url
         };
         
         setMessages(prev => [...prev, newMessage]);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      throw error;
     }
   };
   
@@ -535,7 +575,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     try {
       // First, try physical deletion from database
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabase!
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
@@ -556,7 +596,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const userNotifications = notifications.filter(n => n.userId === user.id);
         if (userNotifications.length > 0) {
           const softDeletePromises = userNotifications.map(notification => 
-            supabase
+            supabase!
               .from('notifications')
               .update({ 
                 title: `[DELETED] ${notification.title}`,
@@ -589,12 +629,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     
     try {
-      await supabase
+      await supabase!
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const blockUserByMe = async (userId: string) => {
+    if (!user || !supabase) return;
+    
+    try {
+      // Add to local blocked list
+      setBlockedUserIds(prev => [...prev, userId]);
+      
+      // Store in database (you can create a blocked_users table)
+      await supabase!
+        .from('blocked_users')
+        .insert({
+          blocker_id: user.id,
+          blocked_id: userId
+        });
+        
+      console.log(`User ${userId} blocked successfully`);
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      // Revert local state on error
+      setBlockedUserIds(prev => prev.filter(id => id !== userId));
     }
   };
 
@@ -633,7 +696,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         clearTyping,
         clearNotifications,
         markAllNotificationsRead,
-        loadChatMessages
+        loadChatMessages,
+        blockUserByMe,
+        blockedUserIds
       }}
     >
       {children}
