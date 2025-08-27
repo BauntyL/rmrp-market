@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Server, Listing, User, Chat, Message, Review, Notification, AppContextType } from '../types';
+import { Server, Lis          supabase!
+            .from('chats')
+            .select('*')
+            .contains('participants', [user.id])
+            .order('created_at', { ascending: false }),, User, Chat, Message, Review, Notification, AppContextType } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -101,6 +105,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (!user || !supabase) return;
 
+    // Subscribe to chat changes
+    const subscription = supabase
+      .channel('chat-changes')
+      .on('postgres_changes', { 
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chats',
+        filter: `participants=cs.{${user.id}}`
+      }, (payload: any) => {
+        const newChat = {
+          id: payload.new.id,
+          participants: payload.new.participants || [],
+          listingId: payload.new.listing_id,
+          unreadCount: payload.new.unread_count || 0
+        };
+        setChats(prev => [...prev, newChat]);
+      })
+      .subscribe();
+
     const loadUserData = async () => {
       try {
         const [notificationsResult, chatsResult] = await Promise.all([
@@ -112,6 +135,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase!
             .from('chats')
             .select('*')
+            .contains('participants', [user.id])
             .order('created_at', { ascending: false })
         ]);
         
@@ -142,6 +166,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     void loadUserData();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user]);
 
   // App functions
