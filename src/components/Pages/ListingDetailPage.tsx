@@ -3,7 +3,6 @@ import { ArrowLeft, MessageCircle, Heart, Share2, MapPin, Calendar, User, Star, 
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ChatWindow } from '../Common/ChatWindow';
-import { formatDate } from '../../lib/dateUtils';
 
 interface ListingDetailPageProps {
   listingId: string;
@@ -111,7 +110,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
     return `${Math.floor(diffInMinutes / 1440)} дн назад`;
   };
 
-  const handleContactSeller = () => {
+  const handleContactSeller = async () => {
     if (!isAuthenticated) {
       onNavigate('login');
       return;
@@ -122,10 +121,12 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
     }
 
     // Create or find existing chat
-    const chat = createChat([user.id, listing.userId], listing.id);
-    setActiveChat(chat);
-    setShowChat(true);
-    setChatMinimized(false);
+    const chat = await createChat([user.id, listing.userId], listing.id);
+    if (chat) {
+      setActiveChat(chat);
+      setShowChat(true);
+      setChatMinimized(false);
+    }
   };
 
   const handleShare = async () => {
@@ -424,7 +425,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                   </div>
                   
                   <div className="text-xs text-slate-500 dark:text-neutral-500 mb-4">
-                    На платформе с {formatDate(sellerData.createdAt, { month: 'long', year: 'numeric' })}
+                    На платформе с {new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(sellerData.createdAt)}
                   </div>
 
                   <button

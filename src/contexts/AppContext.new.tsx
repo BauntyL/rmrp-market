@@ -36,11 +36,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedServer,
     setSelectedServer,
     getUserById: () => undefined,
-    createChat: () => ({ id: '', participants: [], unreadCount: 0 }),
+    createChat: async () => null,
     sendMessage: async () => {},
     markMessageRead: async () => {},
-    typingUsers,
-    isLoading: !mounted
+    typingUsers
   };
 
   if (!mounted) {

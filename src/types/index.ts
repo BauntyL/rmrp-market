@@ -104,7 +104,7 @@ export interface AppContextType {
   createListing: (listing: Omit<Listing, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateListing: (id: string, updates: Partial<Listing>) => void;
   deleteListing: (id: string) => void;
-  createChat: (participants: string[], listingId?: string) => Chat;
+  createChat: (participants: string[], listingId?: string) => Promise<Chat | null>;
   sendMessage: (chatId: string, content: string, attachment?: File | null) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;

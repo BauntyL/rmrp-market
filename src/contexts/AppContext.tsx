@@ -313,26 +313,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
   
-  const createChat = (participants: string[], listingId?: string) => {
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      participants,
-      listingId,
-      unreadCount: 0
-    };
-    setChats(prev => [...prev, newChat]);
+  const createChat = async (participants: string[], listingId?: string): Promise<Chat | null> => {
+    if (!supabase) return null;
     
-    if (supabase) {
-      void supabase
+    try {
+      const { data, error } = await supabase
         .from('chats')
         .insert({
           participants,
           listing_id: listingId,
           unread_count: 0
-        });
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newChat: Chat = {
+        id: data.id,
+        participants: data.participants,
+        listingId: data.listing_id,
+        unreadCount: data.unread_count || 0
+      };
+      
+      setChats(prev => [...prev, newChat]);
+      return newChat;
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      return null;
     }
-    
-    return newChat;
   };
   
   const loadChatMessages = async (chatId: string) => {
