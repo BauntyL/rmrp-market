@@ -635,6 +635,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error('Error in markAllNotificationsRead:', error);
     }
   };
+  
+  // Функция для очистки всех уведомлений пользователя
+  const clearNotifications = async () => {
+    if (!supabase || !user) return;
+    
+    try {
+      // Удаляем все уведомления пользователя из базы данных
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+        
+      if (error) {
+        console.error('Error clearing notifications:', error);
+        return;
+      }
+      
+      // Очищаем уведомления в состоянии React
+      setNotifications([]);
+      
+      console.log('All notifications cleared');
+    } catch (error) {
+      console.error('Error in clearNotifications:', error);
+    }
+  };
 
   return (
     <AppContext.Provider value={{
@@ -655,6 +680,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createReview,
       markNotificationRead,
       markAllNotificationsRead,
+      clearNotifications,
       moderateListing,
       blockUser,
       updateUserRole

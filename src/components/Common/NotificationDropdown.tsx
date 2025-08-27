@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, X, Check, MessageCircle, Star, FileText, Shield } from 'lucide-react';
+import { Bell, X, Check, MessageCircle, Star, FileText, Shield, Trash2 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { Notification } from '../../types';
 
@@ -14,7 +14,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   onClose, 
   onNavigate 
 }) => {
-  const { notifications, markNotificationRead } = useApp();
+  const { notifications, markNotificationRead, clearNotifications } = useApp();
   const [hoveredNotification, setHoveredNotification] = useState<string | null>(null);
 
   const unreadNotifications = notifications.filter(n => !n.isRead);
@@ -80,13 +80,25 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           Уведомления
         </h3>
         <div className="flex items-center gap-2">
-          {unreadNotifications.length > 0 && (
-            <button
-              onClick={markAllAsRead}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Прочитать все
-            </button>
+          {notifications.length > 0 && (
+            <>
+              <button
+                onClick={() => clearNotifications()}
+                className="text-sm text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
+                title="Очистить все уведомления"
+              >
+                <Trash2 size={14} />
+                Очистить
+              </button>
+              {unreadNotifications.length > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Прочитать все
+                </button>
+              )}
+            </>
           )}
           <button
             onClick={onClose}

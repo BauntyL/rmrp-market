@@ -104,6 +104,7 @@ export interface AppContextType {
   createReview: (review: Omit<Review, 'id' | 'createdAt'>) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  clearNotifications: () => void;
   moderateListing: (id: string, action: 'approve' | 'reject', reason?: string) => void;
   blockUser: (userId: string, duration: number) => void;
   updateUserRole: (userId: string, role: User['role']) => void;
