@@ -541,27 +541,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .eq('user_id', user.id)
         .select('*');
 
-      if (error) {
-        console.error('❌ Database deletion failed:', error);
+      const deletedCount = data?.length || count || 0;
+      
+      if (error || deletedCount === 0) {
+        if (error) {
+          console.error('❌ Database deletion failed:', error);
+        } else {
+          console.log('⚠️ Physical deletion returned 0 rows - likely blocked by RLS policies');
+        }
+        
         console.log('🔄 Using soft delete fallback (marking as [DELETED])');
         
         // Fallback: soft delete by updating notifications with [DELETED] prefix
         const userNotifications = notifications.filter(n => n.userId === user.id);
-        const softDeletePromises = userNotifications.map(notification => 
-          supabase
-            .from('notifications')
-            .update({ 
-              title: `[DELETED] ${notification.title}`,
-              message: `[DELETED] ${notification.message}`,
-              is_read: true 
-            })
-            .eq('id', notification.id)
-        );
-        
-        await Promise.all(softDeletePromises);
-        console.log(`🟡 Soft deleted ${userNotifications.length} notifications`);
+        if (userNotifications.length > 0) {
+          const softDeletePromises = userNotifications.map(notification => 
+            supabase
+              .from('notifications')
+              .update({ 
+                title: `[DELETED] ${notification.title}`,
+                message: `[DELETED] ${notification.message}`,
+                is_read: true 
+              })
+              .eq('id', notification.id)
+          );
+          
+          await Promise.all(softDeletePromises);
+          console.log(`🟡 Soft deleted ${userNotifications.length} notifications`);
+        }
       } else {
-        console.log(`✅ Successfully DELETED ${data?.length || count || 0} notifications from database`);
+        console.log(`✅ Successfully DELETED ${deletedCount} notifications from database`);
       }
 
       // Always clear from local state regardless of deletion method
