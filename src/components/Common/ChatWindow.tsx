@@ -148,7 +148,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
         {chatMessages.length > 0 ? (
           chatMessages.map((message) => {
             const isOwn = message.senderId === user?.id;
