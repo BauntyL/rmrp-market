@@ -128,7 +128,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const loadUsers = async () => {
       if (!supabase) return;
       const { data } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .order('created_at', { ascending: false });
       if (data) {
