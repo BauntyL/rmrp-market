@@ -678,75 +678,71 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log('Current notifications count:', notifications.length);
     
     try {
-      // Сначала проверим, сколько уведомлений у пользователя
-      const { data: countData, error: countError } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', user.id);
-        
-      if (countError) {
-        console.error('Error counting notifications:', countError);
-        return;
-      }
-      
-      console.log('Found notifications in database:', countData?.length || 0);
-      
-      // Попробуем удалить с более подробной диагностикой
-      console.log('Executing DELETE query with user_id:', user.id, 'type:', typeof user.id);
+      // Сначала попробуем физическое удаление (DELETE)
+      console.log('Attempting physical DELETE from database...');
       
       const { error, count } = await supabase
         .from('notifications')
         .delete({ count: 'exact' })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .neq('title', '[DELETED]'); // Исключаем уже помеченные как удалённые
         
       console.log('DELETE query result:', { error, count });
         
       if (error) {
-        console.error('Error clearing notifications from database:', error);
+        console.error('Physical DELETE failed:', error);
+        // Fallback к мягкому удалению
+        await fallbackToSoftDelete();
         return;
       }
       
-      if (count === 0) {
-        console.warn('DELETE returned 0 rows affected. This suggests RLS or permission issues.');
-        
-        // Попробуем проверить, какие записи видны пользователю
-        const { data: visibleData, error: selectError } = await supabase
-          .from('notifications')
-          .select('id, user_id')
-          .eq('user_id', user.id)
-          .limit(5);
-          
-        console.log('Visible notifications after DELETE attempt:', { visibleData, selectError });
-        
-        // Попробуем альтернативный способ - маркировка как deleted
-        console.log('Trying alternative approach: marking as deleted instead of DELETE');
-        
-        const { error: updateError, count: updateCount } = await supabase
-          .from('notifications')
-          .update({ 
-            is_read: true,
-            title: '[DELETED]',
-            message: '[DELETED]'
-          })
-          .eq('user_id', user.id);
-          
-        console.log('UPDATE alternative result:', { updateError, updateCount });
-        
-        if (updateError) {
-          console.error('Alternative UPDATE also failed:', updateError);
-        } else if (updateCount && updateCount > 0) {
-          console.log(`Alternative method worked! Updated ${updateCount} notifications`);
-        }
+      if (count && count > 0) {
+        console.log(`✅ Successfully DELETED ${count} notifications from database`);
+      } else {
+        console.warn('DELETE returned 0 rows. Trying soft delete as fallback...');
+        await fallbackToSoftDelete();
       }
       
-      console.log('DELETE operation completed. Count:', count);
+      // Очищаем уведомления в состоянии React
+      setNotifications([]);
+      console.log('All notifications cleared from state and database');
+      
+    } catch (error) {
+      console.error('Exception in clearNotifications:', error);
+      // Fallback к мягкому удалению
+      await fallbackToSoftDelete();
+    }
+  };
+  
+  // Функция мягкого удаления (fallback)
+  const fallbackToSoftDelete = async () => {
+    console.log('🔄 Falling back to soft delete (marking as [DELETED])');
+    
+    try {
+      const { error: updateError, count: updateCount } = await supabase
+        .from('notifications')
+        .update({ 
+          is_read: true,
+          title: '[DELETED]',
+          message: '[DELETED]'
+        })
+        .eq('user_id', user!.id)
+        .neq('title', '[DELETED]'); // Не обновляем уже удалённые
+        
+      if (updateError) {
+        console.error('❌ Soft delete also failed:', updateError);
+        return;
+      }
+      
+      if (updateCount && updateCount > 0) {
+        console.log(`✅ Successfully marked ${updateCount} notifications as [DELETED]`);
+      }
       
       // Очищаем уведомления в состоянии React
       setNotifications([]);
       
-      console.log('All notifications cleared from state and database');
     } catch (error) {
-      console.error('Exception in clearNotifications:', error);
+      console.error('Exception in fallbackToSoftDelete:', error);
     }
   };
 
