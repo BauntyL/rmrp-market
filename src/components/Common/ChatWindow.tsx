@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, MoreVertical } from 'lucide-react';
+import { Send, X, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -19,10 +19,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onToggleMinimize 
 }) => {
   const { user } = useAuth();
-  const { messages, sendMessage, users, loadChatMessages } = useApp();
+  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage } = useApp();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = messages.filter(m => m.chatId === chat.id).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -150,14 +152,63 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         {chatMessages.length > 0 ? (
           chatMessages.map((message) => {
             const isOwn = message.senderId === user?.id;
+            const isEditing = editingMessageId === message.id;
             return (
               <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                <div className={`relative max-w-[80%] px-4 py-2 rounded-2xl ${
                   isOwn 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-slate-100 dark:bg-neutral-700 text-slate-900 dark:text-white'
                 }`}>
-                  <p className="text-sm">{message.content}</p>
+                  {message.isDeleted ? (
+                    <p className="text-sm italic opacity-60">Сообщение удалено</p>
+                  ) : isEditing ? (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        await editMessage(message.id, editValue);
+                        setEditingMessageId(null);
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        className="flex-1 px-2 py-1 rounded text-black text-sm"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        autoFocus
+                      />
+                      <button type="submit" className="text-xs px-2 py-1 bg-green-600 text-white rounded">✓</button>
+                      <button type="button" className="text-xs px-2 py-1 bg-gray-600 text-white rounded" onClick={() => setEditingMessageId(null)}>✕</button>
+                    </form>
+                  ) : (
+                    <>
+                      <p className="text-sm">
+                        {message.content}
+                        {message.isEdited && <span className="ml-2 text-xs italic opacity-60">(изменено)</span>}
+                      </p>
+                      {isOwn && !message.isDeleted && (
+                        <div className="absolute top-1 right-1 flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                          <button
+                            className="p-1 hover:bg-black/10 rounded"
+                            onClick={() => {
+                              setEditingMessageId(message.id);
+                              setEditValue(message.content);
+                            }}
+                            title="Редактировать"
+                          >
+                            <Edit2 size={10} />
+                          </button>
+                          <button
+                            className="p-1 hover:bg-black/10 rounded text-red-300"
+                            onClick={() => deleteMessage(message.id)}
+                            title="Удалить"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className={`text-xs mt-1 ${
                     isOwn ? 'text-blue-100' : 'text-slate-500 dark:text-neutral-400'
                   }`}>

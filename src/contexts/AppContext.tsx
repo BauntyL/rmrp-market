@@ -680,6 +680,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const deleteChat = async (chatId: string) => {
+    if (!user || !supabase) return;
+    
+    try {
+      // Delete all messages in the chat first
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('chat_id', chatId);
+      
+      // Then delete the chat
+      const { error } = await supabase
+        .from('chats')
+        .delete()
+        .eq('id', chatId);
+        
+      if (error) throw error;
+      
+      // Remove from local state
+      setChats(prev => prev.filter(chat => chat.id !== chatId));
+      setMessages(prev => prev.filter(msg => msg.chatId !== chatId));
+      
+      console.log(`Chat ${chatId} deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
+
   if (isLoading) {
     return null;
   }
@@ -717,7 +745,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         markAllNotificationsRead,
         loadChatMessages,
         blockUserByMe,
-        blockedUserIds
+        blockedUserIds,
+        deleteChat
       }}
     >
       {children}

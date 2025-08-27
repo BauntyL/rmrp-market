@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, MoreVertical, MessageCircle } from 'lucide-react';
+import { Send, Search, MoreVertical, MessageCircle, Edit2, Trash2, X } from 'lucide-react';
 import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -11,7 +11,7 @@ interface MessagesViewProps {
 
 export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, blockedUserIds, loadChatMessages } = useApp();
+  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, blockedUserIds, loadChatMessages, deleteChat } = useApp();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -45,17 +45,6 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   }, [selectedChat, loadChatMessages]);
 
   useEffect(() => {
-    // Only auto-scroll for new messages from current user
-    const lastMessage = chatMessages[chatMessages.length - 1];
-    const isOwnMessage = lastMessage?.senderId === user?.id;
-    
-    // Only scroll if it's user's own message
-    if (isOwnMessage && chatMessages.length > 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-    
     // Отметить все сообщения собеседника как прочитанные
     if (user) {
       chatMessages.forEach((msg) => {
@@ -155,19 +144,30 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
                 </div>
               </div>
               
-              <button className="p-2 hover:bg-slate-100 dark:hover:bg-neutral-700 rounded-lg">
-                <MoreVertical size={16} className="text-slate-500" />
-              </button>
-              {otherParticipant && !isBlocked && (
+              <div className="flex items-center gap-2">
+                {otherParticipant && !isBlocked && (
+                  <button
+                    className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                    onClick={async () => {
+                      await blockUserByMe(otherParticipant.id);
+                    }}
+                  >
+                    Заблокировать
+                  </button>
+                )}
                 <button
-                  className="ml-2 px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                  className="p-1 hover:bg-red-100 rounded text-red-600"
                   onClick={async () => {
-                    await blockUserByMe(otherParticipant.id);
+                    if (confirm('Удалить диалог? Это действие нельзя отменить.')) {
+                      await deleteChat(selectedChat.id);
+                      setSelectedChat(null);
+                    }
                   }}
+                  title="Удалить диалог"
                 >
-                  Заблокировать
+                  <X size={16} />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Messages */}
@@ -225,18 +225,24 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
                                 {message.isEdited && <span className="ml-2 text-xs italic">(изменено)</span>}
                               </p>
                               {isOwn && !message.isDeleted && (
-                                <div className="absolute top-1 right-2 flex gap-2 opacity-70 hover:opacity-100">
+                                <div className="absolute top-1 right-2 flex gap-1 opacity-70 hover:opacity-100">
                                   <button
-                                    className="text-xs hover:underline"
+                                    className="p-1 hover:bg-black/10 rounded"
                                     onClick={() => {
                                       setEditingMessageId(message.id);
                                       setEditValue(message.content);
                                     }}
-                                  >Редактировать</button>
+                                    title="Редактировать"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
                                   <button
-                                    className="text-xs text-red-300 hover:underline"
+                                    className="p-1 hover:bg-black/10 rounded text-red-300"
                                     onClick={() => deleteMessage(message.id)}
-                                  >Удалить</button>
+                                    title="Удалить"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
                                 </div>
                               )}
                             </>
