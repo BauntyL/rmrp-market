@@ -32,13 +32,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       
       try {
-        const [serversResult, usersResult] = await Promise.all([
+        const [serversResult, usersResult, listingsResult] = await Promise.all([
           supabase!
             .from('servers')
             .select('*')
             .order('display_name', { ascending: true }),
           supabase!
             .from('users')
+            .select('*')
+            .order('created_at', { ascending: false }),
+          supabase!
+            .from('listings')
             .select('*')
             .order('created_at', { ascending: false })
         ]);
@@ -63,6 +67,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isBlocked: u.is_blocked || false,
             rating: u.rating || 0,
             reviewCount: u.review_count || 0
+          })));
+        }
+
+        if (listingsResult.data) {
+          setListings(listingsResult.data.map((l: any) => ({
+            id: l.id,
+            title: l.title,
+            description: l.description,
+            price: Number(l.price),
+            currency: l.currency,
+            category: l.category,
+            serverId: l.server_id,
+            userId: l.user_id,
+            images: Array.isArray(l.images) ? l.images : [],
+            status: l.status,
+            createdAt: new Date(l.created_at),
+            updatedAt: new Date(l.updated_at),
+            rejectionReason: l.rejection_reason
           })));
         }
       } catch (error) {
