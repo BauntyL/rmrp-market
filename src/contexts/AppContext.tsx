@@ -691,37 +691,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
       
+      console.log(`Attempting to delete chat ${chatId} and its messages...`);
+      
       // Delete all messages in the chat first
-      const { error: messagesError } = await supabase
+      const { data: deletedMessages, error: messagesError } = await supabase
         .from('messages')
         .delete()
-        .eq('chat_id', chatId);
+        .eq('chat_id', chatId)
+        .select();
       
       if (messagesError) {
         console.error('Error deleting messages:', messagesError);
         throw messagesError;
       }
       
+      console.log(`Deleted ${deletedMessages?.length || 0} messages`);
+      
       // Then delete the chat
-      const { error: chatError } = await supabase
+      const { data: deletedChat, error: chatError } = await supabase
         .from('chats')
         .delete()
-        .eq('id', chatId);
+        .eq('id', chatId)
+        .select();
         
       if (chatError) {
         console.error('Error deleting chat:', chatError);
         throw chatError;
       }
       
+      console.log(`Deleted chat:`, deletedChat);
+      
       // Remove from local state
       setChats(prev => prev.filter(chat => chat.id !== chatId));
       setMessages(prev => prev.filter(msg => msg.chatId !== chatId));
       
-      console.log(`Chat ${chatId} deleted successfully`);
+      console.log(`Chat ${chatId} deleted successfully from local state`);
     } catch (error) {
       console.error('Error deleting chat:', error);
-      // Don't revert local state - let user know about the error
-      alert('Ошибка при удалении диалога. Попробуйте еще раз.');
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Ошибка при удалении диалога: ${errorMessage}`);
     }
   };
 
