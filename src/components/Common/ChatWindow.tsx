@@ -36,16 +36,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [chat.id, loadChatMessages]);
 
   useEffect(() => {
-    // Only auto-scroll if user is near the bottom or if it's a new message from current user
-    const container = messagesEndRef.current?.parentElement;
-    if (container) {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      const lastMessage = chatMessages[chatMessages.length - 1];
-      const isOwnMessage = lastMessage?.senderId === user?.id;
-      
-      if (isNearBottom || isOwnMessage) {
+    // Only auto-scroll for new messages from current user, or if explicitly requested
+    const lastMessage = chatMessages[chatMessages.length - 1];
+    const isOwnMessage = lastMessage?.senderId === user?.id;
+    
+    // Only scroll if it's user's own message
+    if (isOwnMessage && chatMessages.length > 0) {
+      setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
+      }, 100);
     }
   }, [chatMessages, user?.id]);
 
