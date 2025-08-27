@@ -12,7 +12,7 @@ interface ListingDetailPageProps {
 
 export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId, onNavigate }) => {
   const { user, isAuthenticated } = useAuth();
-  const { listings, servers, createChat } = useApp();
+  const { listings, servers, getUserById, createChat } = useApp();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -24,19 +24,16 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
 
   const listing = listings.find(l => l.id === listingId);
   const server = listing ? servers.find(s => s.id === listing.serverId) : null;
-
-  // Mock seller data (in real app, would fetch from users context)
-  const seller = {
-    id: listing?.userId || '1',
-    firstName: 'Иван',
-    lastName: 'Петров',
-    uniqueId: '481-295',
-    rating: 4.5,
-    reviewCount: 12,
-    createdAt: new Date('2024-01-15'),
-    isOnline: true,
-    lastSeen: new Date()
-  };
+  
+  // Получаем реальные данные продавца из контекста
+  const seller = listing ? getUserById(listing.userId) : null;
+  
+  // Если продавец не найден, используем заглушку (но индикатор isOnline не доступен в базовом типе)
+  const sellerData = seller ? {
+    ...seller,
+    isOnline: Math.random() > 0.5, // Мок онлайн-статуса
+    lastSeen: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24) // Мок времени последнего посещения
+  } : null;
 
   if (!listing || !server) {
     return (
@@ -51,6 +48,32 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
             </h1>
             <p className="text-slate-600 dark:text-neutral-400 mb-6">
               Возможно, объявление было удалено или перемещено
+            </p>
+            <button
+              onClick={() => onNavigate('listings')}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
+            >
+              К объявлениям
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!sellerData) {
+    return (
+      <div className="min-h-screen pt-24 pb-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-neutral-800 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+              <User size={24} className="text-slate-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+              Данные продавца не найдены
+            </h1>
+            <p className="text-slate-600 dark:text-neutral-400 mb-6">
+              Не удалось загрузить информацию о продавце этого объявления
             </p>
             <button
               onClick={() => onNavigate('listings')}
@@ -363,37 +386,37 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
                         <User size={24} className="text-white" />
                       </div>
-                      {seller.isOnline && (
+                      {sellerData.isOnline && (
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-neutral-800 rounded-full"></div>
                       )}
                     </div>
                     
                     <div className="flex-1">
                       <div className="font-bold text-slate-900 dark:text-white text-lg">
-                        {seller.firstName} {seller.lastName}
+                        {sellerData.firstName} {sellerData.lastName}
                       </div>
                       <div className="text-sm text-slate-500 dark:text-neutral-500 mb-2">
-                        ID: {seller.uniqueId}
+                        ID: {sellerData.uniqueId}
                       </div>
                       
                       <div className="flex items-center gap-1 text-sm mb-1">
-                        {seller.isOnline ? (
+                        {sellerData.isOnline ? (
                           <span className="text-green-600 dark:text-green-400 font-medium">В сети</span>
                         ) : (
                           <span className="text-slate-500 dark:text-neutral-500">
-                            Был в сети {formatRelativeTime(seller.lastSeen)}
+                            Был в сети {formatRelativeTime(sellerData.lastSeen)}
                           </span>
                         )}
                       </div>
                       
-                      {seller.reviewCount > 0 && (
+                      {sellerData.reviewCount > 0 && (
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1">
                             <Star size={16} className="text-yellow-500 fill-current" />
-                            <span className="font-bold text-slate-900 dark:text-white">{seller.rating.toFixed(1)}</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{sellerData.rating.toFixed(1)}</span>
                           </div>
                           <span className="text-slate-500 dark:text-neutral-500 text-sm">
-                            ({seller.reviewCount} отзыв{seller.reviewCount === 1 ? '' : seller.reviewCount < 5 ? 'а' : 'ов'})
+                            ({sellerData.reviewCount} отзыв{sellerData.reviewCount === 1 ? '' : sellerData.reviewCount < 5 ? 'а' : 'ов'})
                           </span>
                         </div>
                       )}
@@ -401,7 +424,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                   </div>
                   
                   <div className="text-xs text-slate-500 dark:text-neutral-500 mb-4">
-                    На платформе с {formatDate(seller.createdAt, { month: 'long', year: 'numeric' })}
+                    На платформе с {formatDate(sellerData.createdAt, { month: 'long', year: 'numeric' })}
                   </div>
 
                   <button

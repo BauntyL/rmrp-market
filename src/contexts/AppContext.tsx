@@ -43,6 +43,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(mockChats);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
@@ -119,6 +120,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     loadChats();
+  }, [isInitialized]);
+
+  // Load users from DB (only once) 
+  useEffect(() => {
+    if (isInitialized) return;
+    const loadUsers = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) {
+        const mapped: User[] = data.map((u: any) => ({
+          id: u.id,
+          uniqueId: u.unique_id,
+          firstName: u.first_name,
+          lastName: u.last_name,
+          password: '', // Не загружаем пароль из соображений безопасности
+          role: u.role || 'user',
+          createdAt: new Date(u.created_at),
+          isBlocked: u.is_blocked || false,
+          blockExpires: u.block_expires ? new Date(u.block_expires) : undefined,
+          rating: u.rating || 0,
+          reviewCount: u.review_count || 0
+        }));
+        setUsers(mapped);
+        console.log('Users loaded from database:', mapped.length);
+      }
+    };
+    loadUsers();
   }, [isInitialized]);
 
   // Load messages from DB (only once)
@@ -746,17 +777,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  // Функция для получения пользователя по ID
+  const getUserById = (id: string): User | undefined => {
+    return users.find(user => user.id === id);
+  };
+
   return (
     <AppContext.Provider value={{
       servers,
       listings,
-      users: [],
+      users,
       chats,
       messages,
       reviews,
       notifications,
       selectedServer,
       setSelectedServer,
+      getUserById,
       createListing,
       updateListing,
       deleteListing,

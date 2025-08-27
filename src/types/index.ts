@@ -96,6 +96,7 @@ export interface AppContextType {
   notifications: Notification[];
   selectedServer: string | null;
   setSelectedServer: (serverId: string | null) => void;
+  getUserById: (id: string) => User | undefined;
   createListing: (listing: Omit<Listing, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateListing: (id: string, updates: Partial<Listing>) => void;
   deleteListing: (id: string) => void;

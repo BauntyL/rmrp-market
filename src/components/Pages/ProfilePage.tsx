@@ -199,6 +199,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                             key={listing.id}
                             listing={listing}
                             server={server!}
+                            user={user}
                             onClick={() => onNavigate(`listing/${listing.id}`)}
                           />
                         );

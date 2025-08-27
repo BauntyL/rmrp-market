@@ -9,7 +9,7 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
-  const { servers, listings } = useApp();
+  const { listings, servers, getUserById } = useApp();
   const { isAuthenticated } = useAuth();
   
   // Get latest listings (limit to 6 for display)
@@ -166,11 +166,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {latestListings.map((listing) => {
                   const server = servers.find(s => s.id === listing.serverId);
+                  const listingOwner = getUserById(listing.userId);
                   return (
                     <ListingCard
                       key={listing.id}
                       listing={listing}
                       server={server!}
+                      user={listingOwner}
                       onClick={() => onNavigate(`listing/${listing.id}`)}
                     />
                   );

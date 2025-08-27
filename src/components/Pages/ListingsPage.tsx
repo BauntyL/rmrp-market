@@ -9,7 +9,7 @@ interface ListingsPageProps {
 }
 
 export const ListingsPage: React.FC<ListingsPageProps> = ({ onNavigate }) => {
-  const { servers, listings, selectedServer, setSelectedServer } = useApp();
+  const { listings, servers, selectedServer, setSelectedServer, getUserById } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
@@ -239,11 +239,13 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ onNavigate }) => {
               }>
                 {filteredListings.map((listing) => {
                   const server = servers.find(s => s.id === listing.serverId);
+                  const listingOwner = getUserById(listing.userId);
                   return (
                     <ListingCard
                       key={listing.id}
                       listing={listing}
                       server={server!}
+                      user={listingOwner}
                       onClick={() => onNavigate(`listing/${listing.id}`)}
                     />
                   );
