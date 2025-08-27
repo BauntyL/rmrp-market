@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Server, Lis          supabase!
-            .from('chats')
-            .select('*')
-            .contains('participants', [user.id])
-            .order('created_at', { ascending: false }),, User, Chat, Message, Review, Notification, AppContextType } from '../types';
+import { Server, User, Chat, Message, Review, Notification, Listing, AppContextType } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
