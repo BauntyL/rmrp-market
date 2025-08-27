@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, Paperclip, MoreVertical } from 'lucide-react';
-import { Chat, Message, User } from '../../types';
+import { Send, X, MoreVertical } from 'lucide-react';
+import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { formatDate } from '../../lib/dateUtils';
@@ -21,6 +21,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const { user } = useAuth();
   const { messages, sendMessage, users } = useApp();
   const [newMessage, setNewMessage] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = messages.filter(m => m.chatId === chat.id).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -32,12 +34,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // (удалена синхронная версия, оставлена асинхронная ниже)
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
-
-    sendMessage(chat.id, newMessage.trim());
-    setNewMessage('');
+    if ((!newMessage.trim() && !attachment) || !user) return;
+    setIsSending(true);
+    try {
+      await sendMessage(chat.id, newMessage.trim(), attachment);
+      setNewMessage('');
+      setAttachment(null);
+    } catch (err) {
+      alert('Ошибка при отправке сообщения. Попробуйте ещё раз.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const formatMessageTime = (date: Date | string | undefined) => {
@@ -154,12 +164,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Input */}
       <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 dark:border-neutral-700">
         <div className="flex gap-2">
+          <input
+            type="file"
+            id={`chat-attachment-${chat.id}`}
+            style={{ display: 'none' }}
+            onChange={e => {
+              if (e.target.files && e.target.files[0]) {
+                setAttachment(e.target.files[0]);
+              }
+            }}
+          />
           <button
             type="button"
             className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300"
+            onClick={() => document.getElementById(`chat-attachment-${chat.id}`)?.click()}
           >
-            <Paperclip size={18} />
+            📎
           </button>
+          {attachment && (
+            <span className="text-xs text-slate-500 ml-2">{attachment.name}</span>
+          )}
           <input
             type="text"
             value={newMessage}

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Server, Listing, User, Chat, Message, Review, Notification, AppContextType } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -40,6 +41,101 @@ const mockMessages: Message[] = [
 ];
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Список id заблокированных текущим пользователем
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+
+  // Загрузка заблокированных пользователей из Supabase
+  useEffect(() => {
+    const loadBlocked = async () => {
+      if (!user || !supabase) return;
+      const { data } = await supabase.from('user_blocks').select('blocked_id').eq('blocker_id', user.id);
+      if (data) {
+        setBlockedUserIds(data.map((row: any) => row.blocked_id));
+      }
+    };
+    loadBlocked();
+  }, [user]);
+  // Блокировка пользователя текущим пользователем (локально и в Supabase)
+  const blockUserByMe = async (userId: string) => {
+    if (!user) return;
+    // Можно хранить список заблокированных id в localStorage или в отдельной таблице supabase (user_blocks)
+    // Здесь пример с Supabase (user_blocks: blocker_id, blocked_id)
+    if (supabase) {
+      await supabase.from('user_blocks').insert({ blocker_id: user.id, blocked_id: userId });
+    }
+  };
+  // Отметить сообщение как прочитанное
+  const markMessageRead = async (messageId: string) => {
+    if (!user) return;
+    setMessages(prev => prev.map(m =>
+      m.id === messageId
+        ? { ...m, readBy: m.readBy ? Array.from(new Set([...m.readBy, user.id])) : [user.id] }
+        : m
+    ));
+    if (supabase) {
+      // Обновляем поле read_by (массив id) в БД
+      await supabase.from('messages').update({ read_by: [user.id] }).eq('id', messageId);
+    }
+  };
+  // Редактирование сообщения
+  const editMessage = async (messageId: string, newContent: string) => {
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent, isEdited: true } : m));
+    if (supabase) {
+      await supabase.from('messages').update({ content: newContent, is_edited: true }).eq('id', messageId);
+    }
+  };
+
+  // Удаление сообщения (soft-delete)
+  const deleteMessage = async (messageId: string) => {
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: '', isDeleted: true } : m));
+    if (supabase) {
+      await supabase.from('messages').update({ content: '', is_deleted: true }).eq('id', messageId);
+    }
+  };
+  // Индикатор "печатает..."
+  const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({});
+
+  // Подписка на события "печатает..." через Supabase Realtime
+  useEffect(() => {
+    if (!user || !supabase) return;
+    const channel = supabase.channel('typing-indicator');
+    channel.on('broadcast', { event: 'typing' }, (payload) => {
+      const { chatId, userId } = payload.payload;
+      setTypingUsers(prev => {
+        const current = prev[chatId] || [];
+        if (!current.includes(userId)) {
+          return { ...prev, [chatId]: [...current, userId] };
+        }
+        return prev;
+      });
+      setTimeout(() => {
+        setTypingUsers(prev => {
+          const current = prev[chatId] || [];
+          return { ...prev, [chatId]: current.filter(id => id !== userId) };
+        });
+      }, 3000);
+    });
+    channel.subscribe();
+    return () => { channel.unsubscribe(); };
+  }, [user]);
+
+  // Метод для отправки события "печатает..."
+  const setTyping = (chatId: string) => {
+    if (!user || !supabase) return;
+    supabase.channel('typing-indicator').send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { chatId, userId: user.id }
+    });
+  };
+
+  // Метод для ручного сброса индикатора (опционально)
+  const clearTyping = (chatId: string, userId: string) => {
+    setTypingUsers(prev => {
+      const current = prev[chatId] || [];
+      return { ...prev, [chatId]: current.filter(id => id !== userId) };
+    });
+  };
   const { user } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -59,36 +155,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!supabase) return;
       const { data } = await supabase
         .from('servers')
-        .select('*')
-        .order('display_name', { ascending: true });
-      if (data) {
-        const mapped: Server[] = data.map((s: any) => ({ id: s.id, name: s.name, displayName: s.display_name }));
-        setServers(mapped);
-      }
-    };
-    loadServers();
-  }, [isInitialized]);
-
-  // Load listings from DB (only once)
-  useEffect(() => {
-    if (isInitialized) return;
-    const loadListings = async () => {
-      if (!supabase) return;
-      const { data } = await supabase
-        .from('listings')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (data) {
-        const mapped: Listing[] = data.map((l: any) => ({
-          id: l.id,
-          title: l.title,
-          description: l.description,
-          price: Number(l.price),
-          currency: l.currency,
-          category: l.category,
-          serverId: l.server_id,
-          userId: l.user_id,
-          images: Array.isArray(l.images) ? l.images : [],
+        return (
+          <AppContext.Provider
+            value={{
+              servers,
+              listings,
+              users,
+              chats,
+              messages,
+              reviews,
+              notifications,
+              selectedServer,
+              setSelectedServer,
+              getUserById: (id: string) => users.find(u => u.id === id),
+              createListing,
+              updateListing,
+              deleteListing,
+              createChat,
+              sendMessage,
+              editMessage,
+              deleteMessage,
+              markMessageRead,
+              blockUserByMe,
+              createReview,
+              markNotificationRead,
+              markAllNotificationsRead,
+              clearNotifications,
+              moderateListing,
+              blockUser,
+              updateUserRole,
+              typingUsers,
+              setTyping,
+              clearTyping,
+              blockedUserIds
+            }}
+          >
+            {children}
+          </AppContext.Provider>
+        );
           status: l.status,
           createdAt: new Date(l.created_at),
           updatedAt: new Date(l.updated_at),
@@ -160,51 +264,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data } = await supabase
         .from('messages')
         .select('*')
-        .order('timestamp', { ascending: true });
-      if (data) {
-        const mapped: Message[] = data.map((m: any) => ({
-          id: m.id,
-          chatId: m.chat_id,
-          senderId: m.sender_id,
-          content: m.content,
-          timestamp: new Date(m.timestamp)
-        }));
-        setMessages(mapped);
-
-        // Populate lastMessage in chats
-        setChats(prev => prev.map(chat => {
-          const last = mapped
-            .filter(m => m.chatId === chat.id)
-            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-            .slice(-1)[0];
-          return { ...chat, lastMessage: last };
-        }));
-      }
-    };
-    loadMessages();
-  }, [isInitialized]);
-
-  // Load notifications for current user (when user changes)
-  useEffect(() => {
-    console.log('Load notifications effect triggered. Initialized:', isInitialized, 'User:', user?.id);
-    
-    if (!isInitialized || !user) {
-      console.log('Clearing notifications - not initialized or no user');
-      setNotifications([]);
-      return;
-    }
-    
-    const loadNotifications = async () => {
-      console.log('loadNotifications called for user:', user.id);
-      
-      if (!supabase) {
-        console.error('Supabase client is not available for loading notifications');
-        return;
-      }
-      
-      console.log('Fetching notifications from database...');
-      
-      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
@@ -412,15 +471,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newChat;
   };
 
-  const sendMessage = (chatId: string, content: string) => {
+  const sendMessage = async (chatId: string, content: string, attachment?: File | null) => {
     if (!user) return;
+
+    let attachmentUrl: string | undefined = undefined;
+    if (attachment && supabase) {
+      const fileExt = attachment.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, attachment);
+      if (uploadError) {
+        alert('Ошибка загрузки файла: ' + uploadError.message);
+        return;
+      }
+      attachmentUrl = supabase.storage.from('chat-attachments').getPublicUrl(fileName).data.publicUrl;
+    }
 
     const newMessage: Message = {
       id: Date.now().toString(),
       chatId,
       senderId: user.id,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      ...(attachmentUrl ? { attachmentUrl } : {})
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -437,13 +509,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (supabase) {
       void supabase
         .from('messages')
-        .insert({ chat_id: chatId, sender_id: user.id, content })
+        .insert({ chat_id: chatId, sender_id: user.id, content, attachment_url: attachmentUrl })
         .select('*')
         .single()
         .then(({ data }: { data: any }) => {
-          // Create notifications for other participants
+          // Получаем участников чата из свежего состояния
+          let chatParticipants: string[] = [];
           const chat = chats.find(c => c.id === chatId);
-          const recipients = chat ? chat.participants.filter(p => p !== user.id) : [];
+          if (chat && Array.isArray(chat.participants)) {
+            chatParticipants = chat.participants;
+          } else if (data && data.participants) {
+            chatParticipants = data.participants;
+          }
+          // Только другие участники, кроме отправителя
+          const recipients = chatParticipants.filter(p => p !== user.id);
           if (recipients.length > 0) {
             const inserts = recipients.map(r => ({
               user_id: r,
@@ -805,12 +884,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearNotifications,
       moderateListing,
       blockUser,
-      updateUserRole
+      updateUserRole,
+      typingUsers,
+      setTyping,
+      clearTyping
     }}>
       {children}
     </AppContext.Provider>
   );
-};
+// конец AppProvider
 
 export const useApp = (): AppContextType => {
   const context = useContext(AppContext);

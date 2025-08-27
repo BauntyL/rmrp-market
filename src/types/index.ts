@@ -1,3 +1,5 @@
+  blockedUserIds: string[];
+  blockUserByMe: (userId: string) => Promise<void>;
 // User types
 export interface User {
   id: string;
@@ -44,6 +46,10 @@ export interface Message {
   senderId: string;
   content: string;
   timestamp: Date;
+  attachmentUrl?: string; // ссылка на файл/картинку, если есть вложение
+  isEdited?: boolean;
+  isDeleted?: boolean;
+  readBy?: string[]; // id пользователей, которые прочитали
 }
 
 export interface Chat {
@@ -101,7 +107,10 @@ export interface AppContextType {
   updateListing: (id: string, updates: Partial<Listing>) => void;
   deleteListing: (id: string) => void;
   createChat: (participants: string[], listingId?: string) => Chat;
-  sendMessage: (chatId: string, content: string) => void;
+  sendMessage: (chatId: string, content: string, attachment?: File | null) => Promise<void>;
+  editMessage: (messageId: string, newContent: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
+  markMessageRead: (messageId: string) => Promise<void>;
   createReview: (review: Omit<Review, 'id' | 'createdAt'>) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
@@ -109,4 +118,7 @@ export interface AppContextType {
   moderateListing: (id: string, action: 'approve' | 'reject', reason?: string) => void;
   blockUser: (userId: string, duration: number) => void;
   updateUserRole: (userId: string, role: User['role']) => void;
+  typingUsers: { [chatId: string]: string[] };
+  setTyping: (chatId: string) => void;
+  clearTyping: (chatId: string, userId: string) => void;
 }
