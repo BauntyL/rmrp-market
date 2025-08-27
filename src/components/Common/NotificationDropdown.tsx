@@ -136,7 +136,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       </div>
 
       {/* Notifications List */}
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto scrollbar-thin">
         {recentNotifications.length > 0 ? (
           <div className="p-2">
             {recentNotifications.map((notification) => (

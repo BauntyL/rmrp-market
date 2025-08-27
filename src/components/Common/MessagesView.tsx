@@ -113,7 +113,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
           <ChatList
             chats={filteredChats}
             onChatSelect={setSelectedChat}
@@ -220,7 +220,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
                             </form>
                           ) : (
                             <>
-                              <p className="text-sm leading-relaxed">
+                              <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
                                 {message.content}
                                 {message.isEdited && <span className="ml-2 text-xs italic">(изменено)</span>}
                               </p>

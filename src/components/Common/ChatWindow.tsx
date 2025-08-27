@@ -182,7 +182,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     </form>
                   ) : (
                     <>
-                      <p className="text-sm">
+                      <p className="text-sm break-words whitespace-pre-wrap">
                         {message.content}
                         {message.isEdited && <span className="ml-2 text-xs italic opacity-60">(изменено)</span>}
                       </p>

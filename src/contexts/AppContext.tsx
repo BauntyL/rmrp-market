@@ -684,19 +684,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user || !supabase) return;
     
     try {
+      // Check if user is participant in this chat
+      const chat = chats.find(c => c.id === chatId);
+      if (!chat || !chat.participants.includes(user.id)) {
+        console.error('User not authorized to delete this chat');
+        return;
+      }
+      
       // Delete all messages in the chat first
-      await supabase
+      const { error: messagesError } = await supabase
         .from('messages')
         .delete()
         .eq('chat_id', chatId);
       
+      if (messagesError) {
+        console.error('Error deleting messages:', messagesError);
+        throw messagesError;
+      }
+      
       // Then delete the chat
-      const { error } = await supabase
+      const { error: chatError } = await supabase
         .from('chats')
         .delete()
         .eq('id', chatId);
         
-      if (error) throw error;
+      if (chatError) {
+        console.error('Error deleting chat:', chatError);
+        throw chatError;
+      }
       
       // Remove from local state
       setChats(prev => prev.filter(chat => chat.id !== chatId));
@@ -705,6 +720,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`Chat ${chatId} deleted successfully`);
     } catch (error) {
       console.error('Error deleting chat:', error);
+      // Don't revert local state - let user know about the error
+      alert('Ошибка при удалении диалога. Попробуйте еще раз.');
     }
   };
 
