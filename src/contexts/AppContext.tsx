@@ -41,6 +41,7 @@ const mockMessages: Message[] = [
 ];
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   // Список id заблокированных текущим пользователем
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
 
@@ -136,7 +137,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { ...prev, [chatId]: current.filter(id => id !== userId) };
     });
   };
-  const { user } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [users, setUsers] = useState<User[]>([]);
