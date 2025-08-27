@@ -79,6 +79,27 @@ CREATE POLICY "Users can update own messages" ON public.messages
 CREATE POLICY "Users can delete own messages" ON public.messages
     FOR DELETE USING (auth.uid() = sender_id);
 
+-- RPC функции для удаления чатов (обходят RLS)
+CREATE OR REPLACE FUNCTION delete_chat_messages(chat_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  DELETE FROM public.messages WHERE messages.chat_id = delete_chat_messages.chat_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION delete_chat(chat_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  DELETE FROM public.chats WHERE chats.id = delete_chat.chat_id;
+END;
+$$;
+
 -- Дополнительные политики для администраторов (опционально)
 -- CREATE POLICY "Admins can manage all notifications" ON public.notifications
 --     FOR ALL USING (

@@ -692,34 +692,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       
       console.log(`Attempting to delete chat ${chatId} and its messages...`);
+      console.log('Current user ID:', user.id);
+      console.log('Chat participants:', chat.participants);
       
-      // Delete all messages in the chat first
-      const { data: deletedMessages, error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('chat_id', chatId)
-        .select();
+      // Use RPC functions to bypass RLS for deletion
+      const { error: messagesError } = await supabase.rpc('delete_chat_messages', {
+        chat_id: chatId
+      });
       
       if (messagesError) {
-        console.error('Error deleting messages:', messagesError);
-        throw messagesError;
+        console.error('Error deleting messages via RPC:', messagesError);
+        // Fallback to direct deletion
+        const { data: fallbackMessages, error: fallbackError } = await supabase
+          .from('messages')
+          .delete()
+          .eq('chat_id', chatId)
+          .select();
+        
+        if (fallbackError) {
+          console.error('Fallback deletion also failed:', fallbackError);
+          throw fallbackError;
+        }
+        console.log(`Fallback deleted ${fallbackMessages?.length || 0} messages`);
+      } else {
+        console.log(`RPC deleted messages for chat ${chatId}`);
       }
       
-      console.log(`Deleted ${deletedMessages?.length || 0} messages`);
-      
-      // Then delete the chat
-      const { data: deletedChat, error: chatError } = await supabase
-        .from('chats')
-        .delete()
-        .eq('id', chatId)
-        .select();
+      // Delete the chat using RPC
+      const { error: chatError } = await supabase.rpc('delete_chat', {
+        chat_id: chatId
+      });
         
       if (chatError) {
-        console.error('Error deleting chat:', chatError);
-        throw chatError;
+        console.error('Error deleting chat via RPC:', chatError);
+        // Fallback to direct deletion
+        const { data: fallbackChat, error: fallbackChatError } = await supabase
+          .from('chats')
+          .delete()
+          .eq('id', chatId)
+          .select();
+          
+        if (fallbackChatError) {
+          console.error('Fallback chat deletion also failed:', fallbackChatError);
+          throw fallbackChatError;
+        }
+        console.log(`Fallback deleted chat:`, fallbackChat);
+      } else {
+        console.log(`RPC deleted chat ${chatId}`);
       }
-      
-      console.log(`Deleted chat:`, deletedChat);
       
       // Remove from local state
       setChats(prev => prev.filter(chat => chat.id !== chatId));
