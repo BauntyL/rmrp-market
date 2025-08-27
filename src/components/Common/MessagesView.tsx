@@ -11,7 +11,7 @@ interface MessagesViewProps {
 
 export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, blockedUserIds } = useApp();
+  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, blockedUserIds, loadChatMessages } = useApp();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -37,14 +37,23 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   // Проверка блокировки через blockedUserIds
   const isBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
 
+  // Load messages when chat is selected
+  useEffect(() => {
+    if (selectedChat) {
+      loadChatMessages(selectedChat.id);
+    }
+  }, [selectedChat, loadChatMessages]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     // Отметить все сообщения собеседника как прочитанные
-    chatMessages.forEach((msg) => {
-      if (msg.senderId !== user?.id && (!msg.readBy || !msg.readBy.includes(user.id))) {
-        markMessageRead(msg.id);
-      }
-    });
+    if (user) {
+      chatMessages.forEach((msg) => {
+        if (msg.senderId !== user.id && (!msg.readBy || !msg.readBy.includes(user.id))) {
+          markMessageRead(msg.id);
+        }
+      });
+    }
   }, [chatMessages, user, markMessageRead]);
 
   const handleSendMessage = async (e: React.FormEvent) => {

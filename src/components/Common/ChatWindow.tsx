@@ -19,7 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onToggleMinimize 
 }) => {
   const { user } = useAuth();
-  const { messages, sendMessage, users } = useApp();
+  const { messages, sendMessage, users, loadChatMessages } = useApp();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -29,6 +29,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const otherParticipant = users.find(u => 
     chat.participants.find(p => p !== user?.id) === u.id
   );
+
+  // Load messages when chat opens
+  useEffect(() => {
+    loadChatMessages(chat.id);
+  }, [chat.id, loadChatMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -368,19 +368,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .order('timestamp', { ascending: true });
         
       if (data) {
-        setMessages(prev => [
-          ...prev,
-          ...data.map((m: any) => ({
-            id: m.id,
-            chatId: m.chat_id,
-            senderId: m.sender_id,
-            content: m.content,
-            timestamp: new Date(m.created_at),
-            isEdited: m.is_edited,
-            isDeleted: m.is_deleted,
-            readBy: m.read_by || []
-          }))
-        ]);
+        setMessages(prev => {
+          // Filter out messages that already exist to prevent duplicates
+          const existingMessageIds = prev.map((msg: Message) => msg.id);
+          const newMessages = data
+            .filter((m: any) => !existingMessageIds.includes(m.id))
+            .map((m: any) => ({
+              id: m.id,
+              chatId: m.chat_id,
+              senderId: m.sender_id,
+              content: m.content,
+              timestamp: new Date(m.timestamp || m.created_at),
+              isEdited: m.is_edited || false,
+              isDeleted: m.is_deleted || false,
+              readBy: m.read_by || [],
+              attachmentUrl: m.attachment_url
+            }));
+          
+          console.log(`Loaded ${newMessages.length} messages for chat ${chatId}`);
+          return [...prev, ...newMessages];
+        });
       }
     } catch (error) {
       console.error('Error loading chat messages:', error);
