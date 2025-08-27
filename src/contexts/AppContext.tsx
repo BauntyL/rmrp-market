@@ -155,12 +155,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Load notifications for current user (when user changes)
   useEffect(() => {
+    console.log('Load notifications effect triggered. Initialized:', isInitialized, 'User:', user?.id);
+    
     if (!isInitialized || !user) {
+      console.log('Clearing notifications - not initialized or no user');
       setNotifications([]);
       return;
     }
+    
     const loadNotifications = async () => {
-      if (!supabase) return;
+      console.log('loadNotifications called for user:', user.id);
+      
+      if (!supabase) {
+        console.error('Supabase client is not available for loading notifications');
+        return;
+      }
+      
+      console.log('Fetching notifications from database...');
+      
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -171,6 +183,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error('Error loading notifications:', error);
         return;
       }
+      
+      console.log('Raw notification data from database:', data);
       
       if (data) {
         const mapped: Notification[] = data.map((n: any) => ({
@@ -183,10 +197,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           createdAt: new Date(n.created_at),
           relatedId: n.related_id || undefined
         }));
+        
+        console.log('Mapped notifications:', mapped);
         setNotifications(mapped);
         console.log('Notifications loaded from database:', mapped.length);
+      } else {
+        console.log('No notification data received from database');
+        setNotifications([]);
       }
     };
+    
     loadNotifications();
     
     // Настраиваем подписку на изменения в таблице notifications
@@ -199,7 +219,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         }, 
-        () => {
+        (payload) => {
+          console.log('Received notification change:', payload);
           // При любых изменениях перезагружаем уведомления
           loadNotifications();
         })
@@ -207,6 +228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
     // Отписываемся при размонтировании компонента
     return () => {
+      console.log('Unsubscribing from notifications changes');
       notificationsSubscription?.unsubscribe();
     };
   }, [isInitialized, user]);
@@ -638,26 +660,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // Функция для очистки всех уведомлений пользователя
   const clearNotifications = async () => {
-    if (!supabase || !user) return;
+    console.log('clearNotifications called');
+    
+    if (!supabase) {
+      console.error('Supabase client is not initialized');
+      return;
+    }
+    
+    if (!user) {
+      console.error('User is not authenticated');
+      return;
+    }
+    
+    console.log('Attempting to clear notifications for user:', user.id);
+    console.log('Current notifications count:', notifications.length);
     
     try {
-      // Удаляем все уведомления пользователя из базы данных
-      const { error } = await supabase
+      // Сначала проверим, сколько уведомлений у пользователя
+      const { data: countData, error: countError } = await supabase
         .from('notifications')
-        .delete()
+        .select('id')
+        .eq('user_id', user.id);
+        
+      if (countError) {
+        console.error('Error counting notifications:', countError);
+        return;
+      }
+      
+      console.log('Found notifications in database:', countData?.length || 0);
+      
+      // Удаляем все уведомления пользователя из базы данных
+      const { error, count } = await supabase
+        .from('notifications')
+        .delete({ count: 'exact' })
         .eq('user_id', user.id);
         
       if (error) {
-        console.error('Error clearing notifications:', error);
+        console.error('Error clearing notifications from database:', error);
         return;
       }
+      
+      console.log('Successfully deleted notifications from database. Count:', count);
       
       // Очищаем уведомления в состоянии React
       setNotifications([]);
       
-      console.log('All notifications cleared');
+      console.log('All notifications cleared from state and database');
     } catch (error) {
-      console.error('Error in clearNotifications:', error);
+      console.error('Exception in clearNotifications:', error);
     }
   };
 
