@@ -173,7 +173,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ onNavigate }) => {
                         className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                       />
                       <span className="text-slate-600 dark:text-neutral-400">
-                        {server.displayName}
+                        {server?.displayName || server.name || 'Неизвестный сервер'}
                       </span>
                     </label>
                   ))}

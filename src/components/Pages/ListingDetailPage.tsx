@@ -275,7 +275,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                   </div>
                   <div>
                     <span className="text-sm text-slate-500 dark:text-neutral-500">Сервер</span>
-                    <p className="font-medium text-slate-900 dark:text-white">{server.displayName}</p>
+                    <p className="font-medium text-slate-900 dark:text-white">{server?.displayName || 'Неизвестный сервер'}</p>
                   </div>
                   <div>
                     <span className="text-sm text-slate-500 dark:text-neutral-500">Опубликовано</span>
@@ -334,7 +334,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-3 text-slate-600 dark:text-neutral-400">
                       <MapPin size={18} className="text-blue-500" />
-                      <span className="font-medium">{server.displayName}</span>
+                      <span className="font-medium">{server?.displayName || 'Неизвестный сервер'}</span>
                     </div>
                     <div className="flex items-center gap-3 text-slate-600 dark:text-neutral-400">
                       <Calendar size={18} className="text-green-500" />

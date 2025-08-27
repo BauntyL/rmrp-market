@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                       : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  {server.displayName}
+                  {server?.displayName || server.name || 'Сервер'}
                 </button>
               ))}
             </div>
@@ -213,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                       : 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-white'
                   }`}
                 >
-                  {server.displayName}
+                  {server?.displayName || server.name || 'Сервер'}
                 </button>
               ))}
             </div>

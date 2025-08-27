@@ -294,7 +294,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                         <div key={server.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-neutral-700 rounded-xl">
                           <div>
                             <div className="font-medium text-slate-900 dark:text-white">
-                              {server.displayName}
+                              {server?.displayName || 'Неизвестный сервер'}
                             </div>
                             <div className="text-sm text-slate-500 dark:text-neutral-500">
                               ID: {server.id}

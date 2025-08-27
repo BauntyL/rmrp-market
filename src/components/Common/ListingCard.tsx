@@ -129,7 +129,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         <div className={`flex items-center ${compact ? 'justify-between' : 'gap-4'} text-xs text-slate-500 dark:text-neutral-500 mb-3`}>
           <div className="flex items-center gap-1">
             <MapPin size={12} />
-            <span>{server.displayName}</span>
+            <span>{server?.displayName || server?.name || 'Неизвестный сервер'}</span>
           </div>
           
           <div className="flex items-center gap-1">
