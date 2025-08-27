@@ -121,4 +121,5 @@ export interface AppContextType {
   typingUsers: { [chatId: string]: string[] };
   setTyping: (chatId: string) => void;
   clearTyping: (chatId: string, userId: string) => void;
+  loadChatMessages: (chatId: string) => Promise<void>;
 }

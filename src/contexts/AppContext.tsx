@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user || !supabase) return;
 
     // Subscribe to chat changes
-    const subscription = supabase
+    const chatSubscription = supabase
       .channel('chat-changes')
       .on('postgres_changes', { 
         event: 'INSERT',
@@ -117,6 +117,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           unreadCount: payload.new.unread_count || 0
         };
         setChats(prev => [...prev, newChat]);
+      })
+      .subscribe();
+
+    // Subscribe to message changes
+    const messageSubscription = supabase
+      .channel('message-changes')
+      .on('postgres_changes', {
+        event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+        schema: 'public',
+        table: 'messages'
+      }, (payload: any) => {
+        if (payload.eventType === 'INSERT') {
+          const newMessage = {
+            id: payload.new.id,
+            chatId: payload.new.chat_id,
+            senderId: payload.new.sender_id,
+            content: payload.new.content,
+            timestamp: new Date(payload.new.created_at),
+            readBy: payload.new.read_by || []
+          };
+          setMessages(prev => [...prev, newMessage]);
+          
+          // Update unread count for the chat
+          if (payload.new.sender_id !== user.id) {
+            setChats(prev => prev.map(chat => 
+              chat.id === payload.new.chat_id 
+                ? { ...chat, unreadCount: (chat.unreadCount || 0) + 1 }
+                : chat
+            ));
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          setMessages(prev => prev.map(msg =>
+            msg.id === payload.new.id
+              ? {
+                  ...msg,
+                  content: payload.new.content,
+                  isEdited: payload.new.is_edited,
+                  readBy: payload.new.read_by || []
+                }
+              : msg
+          ));
+        } else if (payload.eventType === 'DELETE') {
+          setMessages(prev => prev.map(msg =>
+            msg.id === payload.old.id
+              ? { ...msg, content: '', isDeleted: true }
+              : msg
+          ));
+        }
       })
       .subscribe();
 
@@ -163,9 +211,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     void loadUserData();
 
-    // Cleanup subscription on unmount
+    // Cleanup subscriptions on unmount
     return () => {
-      subscription.unsubscribe();
+      chatSubscription.unsubscribe();
+      messageSubscription.unsubscribe();
     };
   }, [user]);
 
@@ -260,27 +309,66 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newChat;
   };
   
+  const loadChatMessages = async (chatId: string) => {
+    if (!supabase) return;
+    
+    try {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+        
+      if (data) {
+        setMessages(prev => [
+          ...prev,
+          ...data.map((m: any) => ({
+            id: m.id,
+            chatId: m.chat_id,
+            senderId: m.sender_id,
+            content: m.content,
+            timestamp: new Date(m.created_at),
+            isEdited: m.is_edited,
+            isDeleted: m.is_deleted,
+            readBy: m.read_by || []
+          }))
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+    }
+  };
+
   const sendMessage = async (chatId: string, content: string) => {
-    if (!user) return;
+    if (!user || !supabase) return;
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      chatId,
-      senderId: user.id,
-      content,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, newMessage]);
-    
-    if (supabase) {
-      void supabase
+    try {
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           chat_id: chatId,
           sender_id: user.id,
           content
-        });
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        const newMessage: Message = {
+          id: data.id,
+          chatId: data.chat_id,
+          senderId: data.sender_id,
+          content: data.content,
+          timestamp: new Date(data.created_at),
+          readBy: []
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
   
@@ -431,6 +519,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const clearNotifications = async () => {
+    if (!user || !supabase) return;
+    
+    setNotifications([]);
+    
+    try {
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!user || !supabase) return;
+    
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
   if (isLoading) {
     return null;
   }
@@ -464,8 +582,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         moderateListing,
         setTyping,
         clearTyping,
-        clearNotifications: async () => {}, // TODO: Implement
-        markAllNotificationsRead: async () => {} // TODO: Implement
+        clearNotifications,
+        markAllNotificationsRead,
+        loadChatMessages
       }}
     >
       {children}
