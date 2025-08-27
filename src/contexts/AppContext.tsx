@@ -184,7 +184,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase!
             .from('chats')
             .select('*')
-            .order('created_at', { ascending: false })
         ]);
         
         if (notificationsResult.data) {
@@ -324,7 +323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('messages')
         .select('*')
         .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
+        .order('timestamp', { ascending: true });
         
       if (data) {
         setMessages(prev => [
