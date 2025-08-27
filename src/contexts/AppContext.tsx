@@ -187,20 +187,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('Raw notification data from database:', data);
       
       if (data) {
-        const mapped: Notification[] = data.map((n: any) => ({
-          id: n.id,
-          userId: n.user_id,
-          type: n.type,
-          title: n.title,
-          message: n.message,
-          isRead: n.is_read,
-          createdAt: new Date(n.created_at),
-          relatedId: n.related_id || undefined
-        }));
+        const mapped: Notification[] = data
+          .filter((n: any) => n.title !== '[DELETED]' && n.message !== '[DELETED]') // Фильтруем удалённые уведомления
+          .map((n: any) => ({
+            id: n.id,
+            userId: n.user_id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            isRead: n.is_read,
+            createdAt: new Date(n.created_at),
+            relatedId: n.related_id || undefined
+          }));
         
-        console.log('Mapped notifications:', mapped);
+        console.log('Mapped notifications (after filtering deleted):', mapped);
         setNotifications(mapped);
-        console.log('Notifications loaded from database:', mapped.length);
+        console.log('Notifications loaded from database (visible):', mapped.length);
       } else {
         console.log('No notification data received from database');
         setNotifications([]);
