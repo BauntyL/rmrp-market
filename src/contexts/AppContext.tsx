@@ -132,16 +132,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         schema: 'public',
         table: 'messages'
       }, (payload: any) => {
+        console.log('Real-time message event:', payload.eventType, payload.new?.id);
         if (payload.eventType === 'INSERT') {
           const newMessage = {
             id: payload.new.id,
             chatId: payload.new.chat_id,
             senderId: payload.new.sender_id,
             content: payload.new.content,
-            timestamp: new Date(payload.new.created_at),
-            readBy: payload.new.read_by || []
+            timestamp: new Date(payload.new.timestamp || payload.new.created_at),
+            readBy: payload.new.read_by || [],
+            attachmentUrl: payload.new.attachment_url,
+            isEdited: payload.new.is_edited || false,
+            isDeleted: payload.new.is_deleted || false
           };
-          setMessages(prev => [...prev, newMessage]);
+          
+          // Avoid duplicate messages
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMessage.id)) {
+              console.log('Duplicate message prevented:', newMessage.id);
+              return prev;
+            }
+            console.log('Adding new message to state:', newMessage.id);
+            return [...prev, newMessage];
+          });
           
           // Update unread count for the chat
           if (payload.new.sender_id !== user.id) {
@@ -413,19 +426,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
       if (error) throw error;
       
-      if (data) {
-        const newMessage: Message = {
-          id: data.id,
-          chatId: data.chat_id,
-          senderId: data.sender_id,
-          content: data.content,
-          timestamp: new Date(data.created_at),
-          readBy: [],
-          attachmentUrl: data.attachment_url
-        };
-        
-        setMessages(prev => [...prev, newMessage]);
-      }
+      // Don't add message to local state here - let the real-time subscription handle it
+      // This prevents duplicate messages
+      console.log('Message sent successfully:', data?.id);
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
