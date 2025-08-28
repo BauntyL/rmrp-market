@@ -904,24 +904,70 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { isOnline: status.isOnline };
   };
 
-  // Update current user's online status when component mounts/unmounts
+  // Real-time online status tracking with Supabase
   useEffect(() => {
-    if (user) {
-      updateUserOnlineStatus(user.id, true);
-      
-      // Set user offline when page is closed/refreshed
-      const handleBeforeUnload = () => {
-        updateUserOnlineStatus(user.id, false);
-      };
-      
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      
-      return () => {
-        updateUserOnlineStatus(user.id, false);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    }
-  }, [user]);
+    if (!user || !supabase) return;
+
+    // Mark current user as online
+    updateUserOnlineStatus(user.id, true);
+
+    // Create a presence channel for real-time status tracking
+    const channel = supabase.channel('online_users', {
+      config: {
+        presence: {
+          key: user.id,
+        },
+      },
+    });
+
+    // Track user presence
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const newState = channel.presenceState();
+        
+        // Update online status for all users based on presence
+        Object.keys(newState).forEach(userId => {
+          updateUserOnlineStatus(userId, true);
+        });
+
+        // Mark users not in presence as offline
+        users.forEach(u => {
+          if (!newState[u.id]) {
+            updateUserOnlineStatus(u.id, false);
+          }
+        });
+      })
+      .on('presence', { event: 'join' }, ({ key }) => {
+        updateUserOnlineStatus(key, true);
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        updateUserOnlineStatus(key, false);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // Track this user's presence
+          await channel.track({
+            user_id: user.id,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    // Set user offline when page is closed/refreshed
+    const handleBeforeUnload = () => {
+      updateUserOnlineStatus(user.id, false);
+      channel.untrack();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      updateUserOnlineStatus(user.id, false);
+      channel.untrack();
+      channel.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [user, users, supabase]);
 
   if (isLoading) {
     return null;
