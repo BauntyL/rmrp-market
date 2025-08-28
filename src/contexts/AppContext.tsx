@@ -205,11 +205,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
           const blockedUsersResult = await supabase!
             .from('blocked_users')
-            .select('blocked_id')
-            .eq('blocker_id', user.id);
+            .select('blocker_id')
+            .eq('blocked_id', user.id);
           
           if (blockedUsersResult.data) {
-            setBlockedUserIds(blockedUsersResult.data.map((b: any) => b.blocked_id));
+            setBlockedUserIds(blockedUsersResult.data.map((b: any) => b.blocker_id));
           }
         } catch (error) {
           console.log('Blocked users table not found - skipping');
