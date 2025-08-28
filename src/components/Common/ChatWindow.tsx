@@ -92,7 +92,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-4 right-4 w-80 bg-white dark:bg-neutral-800 rounded-t-2xl shadow-lg border border-slate-200 dark:border-neutral-700">
+      <div className="fixed bottom-4 right-20 w-80 bg-white dark:bg-neutral-800 rounded-t-2xl shadow-lg border border-slate-200 dark:border-neutral-700 z-50">
         <div 
           className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-neutral-700 cursor-pointer"
           onClick={onToggleMinimize}
@@ -129,7 +129,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 h-[500px] bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 flex flex-col">
+    <div className="fixed bottom-4 right-20 w-96 h-[500px] bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 flex flex-col z-50">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-neutral-700">
         <div className="flex items-center gap-3">
