@@ -3,7 +3,6 @@ import { ShoppingBag, Users, Shield, Zap } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ListingCard } from '../Common/ListingCard';
-import { QuickChatWidget } from '../Common/QuickChatWidget';
 import { ActiveChatsWidget } from '../Common/ActiveChatsWidget';
 
 interface HomePageProps {
@@ -185,9 +184,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </section>
       )}
 
-      {/* Quick Chat Widget */}
-      <QuickChatWidget />
-      
       {/* Active Chats Widget */}
       <ActiveChatsWidget />
     </div>
