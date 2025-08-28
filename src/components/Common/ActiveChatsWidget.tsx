@@ -45,11 +45,12 @@ export const ActiveChatsWidget: React.FC = () => {
 
   return (
     <>
-      {/* Widget */}
-      <div className="fixed right-4 bottom-4 z-40">
-        <div className={`bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 transition-all duration-300 ${
-          isExpanded ? 'w-80' : 'w-16'
-        }`}>
+      {/* Widget - скрывается когда открыт чат */}
+      {!selectedChat && (
+        <div className="fixed right-4 bottom-4 z-40">
+          <div className={`bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-slate-200 dark:border-neutral-700 transition-all duration-300 ${
+            isExpanded ? 'w-80' : 'w-16'
+          }`}>
           {/* Header */}
           <div className="p-4 border-b border-slate-200 dark:border-neutral-700">
             <div className="flex items-center justify-between">
@@ -152,7 +153,8 @@ export const ActiveChatsWidget: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Chat Window */}
       {selectedChat && (
