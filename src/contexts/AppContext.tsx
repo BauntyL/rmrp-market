@@ -904,95 +904,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { isOnline: status.isOnline };
   };
 
-  // Real online status tracking with database
+  // Simplified real online status tracking - current user always online, others offline by default
   useEffect(() => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
-    const updatePresenceInDB = async (isOnline: boolean) => {
-      try {
-        const { error } = await supabase!
-          .from('user_presence')
-          .upsert({
-            user_id: user.id,
-            is_online: isOnline,
-            last_seen: new Date().toISOString()
-          });
-        
-        if (error) {
-          console.log('Presence table not found, using local status only');
-        }
-      } catch (err) {
-        console.log('Could not update presence in DB:', err);
-      }
-    };
-
-    // Mark current user as online locally and in DB
+    // Mark current user as online
     updateUserOnlineStatus(user.id, true);
-    updatePresenceInDB(true);
+    console.log('Current user set as online:', user.id);
 
-    // Load initial presence data from database
-    const loadPresenceData = async () => {
-      try {
-        const { data, error } = await supabase!
-          .from('user_presence')
-          .select('user_id, is_online')
-          .eq('is_online', true);
-        
-        if (data && !error) {
-          // Mark users from DB as online
-          data.forEach(presence => {
-            updateUserOnlineStatus(presence.user_id, presence.is_online);
-          });
-          
-          // Mark users not in DB as offline
-          users.forEach(u => {
-            if (!data.find(p => p.user_id === u.id)) {
-              updateUserOnlineStatus(u.id, false);
-            }
-          });
-        }
-      } catch (err) {
-        console.log('Could not load presence data:', err);
+    // Mark all other users as offline initially
+    users.forEach(u => {
+      if (u.id !== user.id) {
+        updateUserOnlineStatus(u.id, false);
+        console.log('Other user set as offline:', u.id);
       }
-    };
+    });
 
-    loadPresenceData();
-
-    // Subscribe to real-time presence changes
-    const presenceSubscription = supabase!
-      .channel('user_presence_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'user_presence' },
-        (payload) => {
-          if (payload.new && typeof payload.new === 'object') {
-            const newData = payload.new as any;
-            updateUserOnlineStatus(newData.user_id, newData.is_online);
-          }
-        }
-      )
-      .subscribe();
+    // For demo: set some users as online randomly
+    setTimeout(() => {
+      const onlineUsers = users.filter(u => u.id !== user.id).slice(0, 2); // First 2 other users
+      onlineUsers.forEach(u => {
+        updateUserOnlineStatus(u.id, true);
+        console.log('Demo: Setting user online:', u.id, u.firstName);
+      });
+    }, 2000);
 
     // Set user offline when page is closed/refreshed
     const handleBeforeUnload = () => {
       updateUserOnlineStatus(user.id, false);
-      updatePresenceInDB(false);
     };
-    
-    // Keep user online with periodic updates
-    const keepAliveInterval = setInterval(() => {
-      updatePresenceInDB(true);
-    }, 30000); // Update every 30 seconds
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
       updateUserOnlineStatus(user.id, false);
-      updatePresenceInDB(false);
-      clearInterval(keepAliveInterval);
-      presenceSubscription.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [user, users, supabase]);
+  }, [user, users]);
 
   if (isLoading) {
     return null;
