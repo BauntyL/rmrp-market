@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Send, X, MoreVertical, Edit2, Trash2, UserX, UserCheck } from 'lucide-react';
 import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -19,18 +19,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onToggleMinimize 
 }) => {
   const { user } = useAuth();
-  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage } = useApp();
+  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage, blockUserByMe, unblockUserByMe, blockedUserIds } = useApp();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = messages.filter(m => m.chatId === chat.id).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   const otherParticipant = users.find(u => 
     chat.participants.find(p => p !== user?.id) === u.id
   );
+  
+  const isUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
 
   // Load messages when chat opens
   useEffect(() => {
@@ -71,6 +74,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleBlockUser = async () => {
+    if (otherParticipant) {
+      await blockUserByMe(otherParticipant.id);
+      setShowUserMenu(false);
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    if (otherParticipant) {
+      await unblockUserByMe(otherParticipant.id);
+      setShowUserMenu(false);
+    }
   };
 
   if (isMinimized) {
@@ -131,13 +148,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         </div>
         
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative">
           <button
-            onClick={onToggleMinimize}
+            onClick={() => setShowUserMenu(!showUserMenu)}
             className="p-2 hover:bg-slate-100 dark:hover:bg-neutral-700 rounded-lg"
           >
             <MoreVertical size={16} className="text-slate-500" />
           </button>
+          
+          {/* User menu dropdown */}
+          {showUserMenu && (
+            <div className="absolute top-full right-0 mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+              {isUserBlocked ? (
+                <button
+                  onClick={handleUnblockUser}
+                  className="w-full px-3 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-slate-50 dark:hover:bg-neutral-700 flex items-center gap-2"
+                >
+                  <UserCheck size={14} />
+                  Разблокировать
+                </button>
+              ) : (
+                <button
+                  onClick={handleBlockUser}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-neutral-700 flex items-center gap-2"
+                >
+                  <UserX size={14} />
+                  Заблокировать
+                </button>
+              )}
+            </div>
+          )}
+          
           <button
             onClick={onClose}
             className="p-2 hover:bg-slate-100 dark:hover:bg-neutral-700 rounded-lg"
@@ -229,44 +270,54 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 dark:border-neutral-700">
-        <div className="flex gap-2">
-          <input
-            type="file"
-            id={`chat-attachment-${chat.id}`}
-            style={{ display: 'none' }}
-            onChange={e => {
-              if (e.target.files && e.target.files[0]) {
-                setAttachment(e.target.files[0]);
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300"
-            onClick={() => document.getElementById(`chat-attachment-${chat.id}`)?.click()}
-          >
-            📎
-          </button>
-          {attachment && (
-            <span className="text-xs text-slate-500 ml-2">{attachment.name}</span>
-          )}
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Написать сообщение..."
-            className="flex-1 px-4 py-2 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="submit"
-            disabled={!newMessage.trim()}
-            className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl transition-colors"
-          >
-            <Send size={18} />
-          </button>
+      {isUserBlocked ? (
+        <div className="p-4 border-t border-slate-200 dark:border-neutral-700 bg-red-50 dark:bg-red-900/20">
+          <div className="text-center text-red-600 dark:text-red-400 text-sm">
+            <UserX size={16} className="inline mr-2" />
+            Пользователь заблокирован. Отправка сообщений недоступна.
+          </div>
         </div>
-      </form>
+      ) : (
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 dark:border-neutral-700">
+          <div className="flex gap-2">
+            <input
+              type="file"
+              id={`chat-attachment-${chat.id}`}
+              style={{ display: 'none' }}
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  setAttachment(e.target.files[0]);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300"
+              onClick={() => document.getElementById(`chat-attachment-${chat.id}`)?.click()}
+            >
+              📎
+            </button>
+            {attachment && (
+              <span className="text-xs text-slate-500 ml-2">{attachment.name}</span>
+            )}
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Написать сообщение..."
+              className="flex-1 px-4 py-2 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-blue-500"
+              disabled={isSending}
+            />
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || isSending}
+              className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl transition-colors"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 };

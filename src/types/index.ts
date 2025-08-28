@@ -123,5 +123,6 @@ export interface AppContextType {
   loadChatMessages: (chatId: string) => Promise<void>;
   blockedUserIds: string[];
   blockUserByMe: (userId: string) => Promise<void>;
+  unblockUserByMe: (userId: string) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
 }

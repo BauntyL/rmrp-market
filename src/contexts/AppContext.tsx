@@ -780,6 +780,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const unblockUserByMe = async (userId: string) => {
+    if (!user || !supabase) return;
+    
+    try {
+      // Remove from local blocked list
+      setBlockedUserIds(prev => prev.filter(id => id !== userId));
+      
+      // Remove from database
+      await supabase!
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', userId);
+        
+      console.log(`User ${userId} unblocked successfully`);
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      // Revert local state on error
+      setBlockedUserIds(prev => [...prev, userId]);
+    }
+  };
+
   const deleteChat = async (chatId: string) => {
     if (!user || !supabase) return;
     
@@ -890,6 +912,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         markAllNotificationsRead,
         loadChatMessages,
         blockUserByMe,
+        unblockUserByMe,
         blockedUserIds,
         deleteChat
       }}
