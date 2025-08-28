@@ -405,9 +405,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                         {sellerData.isOnline ? (
                           <span className="text-green-600 dark:text-green-400 font-medium">В сети</span>
                         ) : (
-                          <span className="text-slate-500 dark:text-neutral-500">
-                            {sellerData.lastSeen ? `Был в сети ${formatRelativeTime(sellerData.lastSeen)}` : 'Статус недоступен'}
-                          </span>
+                          <span className="text-slate-500 dark:text-neutral-500">Не в сети</span>
                         )}
                       </div>
                       

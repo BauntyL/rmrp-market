@@ -59,15 +59,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [chatMessages, user?.id]);
 
-  const formatRelativeTime = (date: Date) => {
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'только что';
-    if (diffInMinutes < 60) return `${diffInMinutes} мин назад`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ч назад`;
-    return `${Math.floor(diffInMinutes / 1440)} дн назад`;
-  };
 
   // (удалена синхронная версия, оставлена асинхронная ниже)
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -159,8 +150,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               {otherParticipant?.firstName} {otherParticipant?.lastName}
             </div>
             <div className={`text-xs ${otherParticipantStatus?.isOnline ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-neutral-500'}`}>
-              {otherParticipantStatus?.isOnline ? 'В сети' : 
-               otherParticipantStatus?.lastSeen ? `Был в сети ${formatRelativeTime(otherParticipantStatus.lastSeen)}` : 'Статус недоступен'}
+              {otherParticipantStatus?.isOnline ? 'В сети' : 'Не в сети'}
             </div>
           </div>
         </div>

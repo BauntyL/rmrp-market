@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, MessageCircle, Edit2, Trash2, X, UserX, UserCheck } from 'lucide-react';
+import { Send, Search, MessageCircle, Edit2, Trash2, X } from 'lucide-react';
 import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -99,15 +99,6 @@ export const MessagesView: React.FC<MessagesViewProps> = () => {
     }
   };
 
-  const formatRelativeTime = (date: Date) => {
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'только что';
-    if (diffInMinutes < 60) return `${diffInMinutes} мин назад`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ч назад`;
-    return `${Math.floor(diffInMinutes / 1440)} дн назад`;
-  };
 
   return (
     <div className="h-[600px] bg-white dark:bg-neutral-800 rounded-2xl shadow-sm overflow-hidden flex">
@@ -154,8 +145,7 @@ export const MessagesView: React.FC<MessagesViewProps> = () => {
                     {otherParticipant?.firstName} {otherParticipant?.lastName}
                   </div>
                   <div className={`text-xs ${otherParticipantStatus?.isOnline ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-neutral-500'}`}>
-                    {otherParticipantStatus?.isOnline ? 'В сети' : 
-                     otherParticipantStatus?.lastSeen ? `Был в сети ${formatRelativeTime(otherParticipantStatus.lastSeen)}` : 'Статус недоступен'}
+                    {otherParticipantStatus?.isOnline ? 'В сети' : 'Не в сети'}
                   </div>
                 </div>
               </div>
