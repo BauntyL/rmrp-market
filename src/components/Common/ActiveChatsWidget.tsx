@@ -124,25 +124,21 @@ export const ActiveChatsWidget: React.FC = () => {
                               <div className={`w-2 h-2 rounded-full ${status.isOnline ? 'bg-green-500' : 'bg-slate-400'}`} />
                             );
                           })()}
-                          <p className="text-xs text-slate-600 dark:text-neutral-400 truncate">
-                            {chat.lastMessage?.content || 'Нет сообщений'}
-                          </p>
+                          {chat.lastMessage ? (
+                            <p className={`text-xs truncate ${
+                              chat.unreadCount > 0 
+                                ? 'text-slate-900 dark:text-white font-medium' 
+                                : 'text-slate-600 dark:text-neutral-400'
+                            }`}>
+                              {chat.lastMessage.senderId === user.id ? 'Вы: ' : ''}
+                              {chat.lastMessage.content}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-500 dark:text-neutral-500">
+                              Диалог создан
+                            </p>
+                          )}
                         </div>
-                        
-                        {chat.lastMessage ? (
-                          <p className={`text-xs truncate ${
-                            chat.unreadCount > 0 
-                              ? 'text-slate-900 dark:text-white font-medium' 
-                              : 'text-slate-600 dark:text-neutral-400'
-                          }`}>
-                            {chat.lastMessage.senderId === user.id ? 'Вы: ' : ''}
-                            {chat.lastMessage.content}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-slate-500 dark:text-neutral-500">
-                            Диалог создан
-                          </p>
-                        )}
                       </div>
                       
                       <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
@@ -154,7 +150,7 @@ export const ActiveChatsWidget: React.FC = () => {
               {/* View All Link */}
               <div className="p-3 border-t border-slate-200 dark:border-neutral-700">
                 <button 
-                  onClick={() => window.location.hash = 'profile?tab=messages'}
+                  onClick={() => window.location.hash = 'messages'}
                   className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   Посмотреть все диалоги
