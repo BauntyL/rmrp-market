@@ -13,6 +13,9 @@ export interface User {
   reviewCount: number;
   isOnline?: boolean;
   lastSeen?: Date;
+  is_banned?: boolean;
+  ban_reason?: string;
+  banned_at?: string;
 }
 
 // Server types
@@ -70,6 +73,22 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date;
+}
+
+// Report types
+export interface Report {
+  id: string;
+  reporter_id: string;
+  reported_user_id?: string;
+  reported_listing_id?: string;
+  report_type: 'user' | 'listing';
+  reason: 'spam' | 'inappropriate_content' | 'fraud' | 'harassment' | 'fake_listing' | 'offensive_behavior' | 'other';
+  description?: string;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  admin_notes?: string;
+  resolved_by?: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // Notification types
@@ -130,4 +149,8 @@ export interface AppContextType {
   deleteChat: (chatId: string) => Promise<void>;
   updateUserOnlineStatus: (userId: string, isOnline: boolean) => void;
   getUserOnlineStatus: (userId: string) => { isOnline: boolean; lastSeen?: Date };
+  banUser: (userId: string, reason?: string) => Promise<void>;
+  unbanUser: (userId: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  adminDeleteListing: (listingId: string) => Promise<void>;
 }

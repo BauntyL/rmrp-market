@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Users, FileText, AlertTriangle, Settings, CheckCircle, XCircle } from 'lucide-react';
+import { Shield, Users, FileText, AlertTriangle, Settings, CheckCircle, XCircle, Ban, UserX, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
@@ -9,10 +9,12 @@ interface AdminPageProps {
 
 export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { listings, servers, moderateListing } = useApp();
+  const { listings, servers, users, moderateListing, banUser, unbanUser, deleteUser, adminDeleteListing } = useApp();
   const [activeTab, setActiveTab] = useState('moderation');
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [banReason, setBanReason] = useState('');
 
   if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
     return (
@@ -42,7 +44,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
   const tabs = [
     { id: 'moderation', name: 'Модерация', icon: FileText, count: pendingListings.length },
-    { id: 'users', name: 'Пользователи', icon: Users },
+    { id: 'users', name: 'Пользователи', icon: Users, count: users.length },
     { id: 'reports', name: 'Жалобы', icon: AlertTriangle, count: 0 },
     { id: 'settings', name: 'Настройки', icon: Settings }
   ];
@@ -60,6 +62,32 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     moderateListing(listingId, 'reject', rejectionReason);
     setSelectedListing(null);
     setRejectionReason('');
+  };
+
+  const handleBanUser = async (userId: string) => {
+    if (!banReason.trim()) {
+      alert('Укажите причину блокировки');
+      return;
+    }
+    await banUser(userId, banReason);
+    setSelectedUser(null);
+    setBanReason('');
+  };
+
+  const handleUnbanUser = async (userId: string) => {
+    await unbanUser(userId);
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (confirm('Вы уверены, что хотите удалить этого пользователя? Это действие нельзя отменить.')) {
+      await deleteUser(userId);
+    }
+  };
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (confirm('Вы уверены, что хотите удалить это объявление? Это действие нельзя отменить.')) {
+      await adminDeleteListing(listingId);
+    }
   };
 
   return (
@@ -172,6 +200,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                                   <XCircle size={16} />
                                   Отклонить
                                 </button>
+                                <button
+                                  onClick={() => handleDeleteListing(listing.id)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                                >
+                                  <Trash2 size={16} />
+                                  Удалить
+                                </button>
                               </div>
                             </div>
                             
@@ -256,14 +291,124 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
               )}
 
               {activeTab === 'users' && (
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl p-8 text-center">
-                  <Users size={48} className="text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                    Управление пользователями
-                  </h3>
-                  <p className="text-slate-600 dark:text-neutral-400">
-                    Функция управления пользователями будет добавлена в следующем обновлении
-                  </p>
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      Управление пользователями ({users.length})
+                    </h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    {users.map((userItem) => {
+                      const isSelected = selectedUser === userItem.id;
+                      const isBanned = userItem.is_banned;
+                      
+                      return (
+                        <div key={userItem.id} className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
+                                isBanned ? 'bg-red-600' : 'bg-blue-600'
+                              }`}>
+                                {userItem.firstName[0]}{userItem.lastName[0]}
+                              </div>
+                              
+                              <div>
+                                <h3 className="font-bold text-slate-900 dark:text-white">
+                                  {userItem.firstName} {userItem.lastName}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-neutral-500">
+                                  <span>ID: {userItem.uniqueId}</span>
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    userItem.role === 'admin' 
+                                      ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                                      : userItem.role === 'moderator'
+                                      ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                      : 'bg-gray-100 text-gray-600 dark:bg-gray-900/20 dark:text-gray-400'
+                                  }`}>
+                                    {userItem.role === 'admin' ? 'Админ' : userItem.role === 'moderator' ? 'Модератор' : 'Пользователь'}
+                                  </span>
+                                  {isBanned && (
+                                    <span className="px-2 py-1 bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-full text-xs">
+                                      Заблокирован
+                                    </span>
+                                  )}
+                                </div>
+                                {isBanned && userItem.ban_reason && (
+                                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                    Причина: {userItem.ban_reason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {!isBanned ? (
+                                <>
+                                  <button
+                                    onClick={() => setSelectedUser(isSelected ? null : userItem.id)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors text-sm"
+                                  >
+                                    <Ban size={14} />
+                                    Заблокировать
+                                  </button>
+                                  {userItem.role !== 'admin' && (
+                                    <button
+                                      onClick={() => handleDeleteUser(userItem.id)}
+                                      className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors text-sm"
+                                    >
+                                      <Trash2 size={14} />
+                                      Удалить
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleUnbanUser(userItem.id)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors text-sm"
+                                >
+                                  <UserX size={14} />
+                                  Разблокировать
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {isSelected && !isBanned && (
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-neutral-700">
+                              <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
+                                Причина блокировки:
+                              </label>
+                              <textarea
+                                value={banReason}
+                                onChange={(e) => setBanReason(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-100 dark:bg-neutral-700 border-0 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-red-500 resize-none"
+                                rows={3}
+                                placeholder="Укажите причину блокировки пользователя..."
+                              />
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={() => handleBanUser(userItem.id)}
+                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                                >
+                                  Заблокировать с причиной
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedUser(null);
+                                    setBanReason('');
+                                  }}
+                                  className="px-4 py-2 border border-slate-300 dark:border-neutral-600 text-slate-900 dark:text-white rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-neutral-700"
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -282,9 +427,111 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
               {activeTab === 'settings' && (
                 <div className="space-y-6">
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Настройки платформы
+                    Статистика и настройки
                   </h2>
                   
+                  {/* Statistics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-slate-600 dark:text-neutral-400">Всего пользователей</p>
+                          <p className="text-2xl font-bold text-slate-900 dark:text-white">{users.length}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+                          <Users size={24} className="text-blue-600 dark:text-blue-400" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-slate-600 dark:text-neutral-400">Всего объявлений</p>
+                          <p className="text-2xl font-bold text-slate-900 dark:text-white">{listings.length}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+                          <FileText size={24} className="text-green-600 dark:text-green-400" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-slate-600 dark:text-neutral-400">На модерации</p>
+                          <p className="text-2xl font-bold text-slate-900 dark:text-white">{pendingListings.length}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-xl flex items-center justify-center">
+                          <AlertTriangle size={24} className="text-yellow-600 dark:text-yellow-400" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-slate-600 dark:text-neutral-400">Активных объявлений</p>
+                          <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {listings.filter(l => l.status === 'active').length}
+                          </p>
+                        </div>
+                        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+                          <CheckCircle size={24} className="text-green-600 dark:text-green-400" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* User Role Statistics */}
+                  <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                    <h3 className="font-medium text-slate-900 dark:text-white mb-4">
+                      Статистика пользователей
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center p-4 bg-slate-50 dark:bg-neutral-700 rounded-xl">
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {users.filter(u => u.role === 'admin').length}
+                        </div>
+                        <div className="text-sm text-slate-600 dark:text-neutral-400">Администраторы</div>
+                      </div>
+                      <div className="text-center p-4 bg-slate-50 dark:bg-neutral-700 rounded-xl">
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {users.filter(u => u.role === 'moderator').length}
+                        </div>
+                        <div className="text-sm text-slate-600 dark:text-neutral-400">Модераторы</div>
+                      </div>
+                      <div className="text-center p-4 bg-slate-50 dark:bg-neutral-700 rounded-xl">
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {users.filter(u => u.role === 'user').length}
+                        </div>
+                        <div className="text-sm text-slate-600 dark:text-neutral-400">Пользователи</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ban Statistics */}
+                  <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
+                    <h3 className="font-medium text-slate-900 dark:text-white mb-4">
+                      Статистика блокировок
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                          {users.filter(u => u.is_banned).length}
+                        </div>
+                        <div className="text-sm text-red-600 dark:text-red-400">Заблокированные пользователи</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {users.filter(u => !u.is_banned).length}
+                        </div>
+                        <div className="text-sm text-green-600 dark:text-green-400">Активные пользователи</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Server Settings */}
                   <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6">
                     <h3 className="font-medium text-slate-900 dark:text-white mb-4">
                       Серверы

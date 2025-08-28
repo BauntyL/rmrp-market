@@ -322,6 +322,91 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('id', id);
   };
 
+  // Admin functions for user management
+  const banUser = async (userId: string, reason?: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          is_banned: true,
+          ban_reason: reason,
+          banned_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, is_banned: true, ban_reason: reason }
+          : user
+      ));
+    } catch (error) {
+      console.error('Error banning user:', error);
+      alert('Ошибка при блокировке пользователя');
+    }
+  };
+
+  const unbanUser = async (userId: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          is_banned: false,
+          ban_reason: null,
+          banned_at: null
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, is_banned: false, ban_reason: undefined }
+          : user
+      ));
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      alert('Ошибка при разблокировке пользователя');
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.filter(user => user.id !== userId));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Ошибка при удалении пользователя');
+    }
+  };
+
+  const adminDeleteListing = async (listingId: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('listings')
+        .delete()
+        .eq('id', listingId);
+
+      if (error) throw error;
+
+      setListings(prev => prev.filter(listing => listing.id !== listingId));
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      alert('Ошибка при удалении объявления');
+    }
+  };
+
   const setTyping = (chatId: string) => {
     if (!user || !supabase) return;
     void supabase.channel('typing-indicator').send({
@@ -973,6 +1058,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         blockUser,
         updateUserRole,
         moderateListing,
+        banUser,
+        unbanUser,
+        deleteUser,
+        adminDeleteListing,
         setTyping,
         clearTyping,
         clearNotifications,
