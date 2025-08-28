@@ -23,6 +23,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({});
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [myBlockedUserIds, setMyBlockedUserIds] = useState<string[]>([]);
 
   // Initialize data
   useEffect(() => {
@@ -203,13 +204,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Try to load users who blocked current user (table may not exist yet)
         try {
-          const blockedUsersResult = await supabase!
-            .from('blocked_users')
-            .select('blocker_id')
-            .eq('blocked_id', user.id);
+          const [blockedByResult, myBlockedResult] = await Promise.all([
+            supabase!
+              .from('blocked_users')
+              .select('blocker_id')
+              .eq('blocked_id', user.id),
+            supabase!
+              .from('blocked_users')
+              .select('blocked_id')
+              .eq('blocker_id', user.id)
+          ]);
           
-          if (blockedUsersResult.data) {
-            setBlockedUserIds(blockedUsersResult.data.map((b: any) => b.blocker_id));
+          if (blockedByResult.data) {
+            setBlockedUserIds(blockedByResult.data.map((b: any) => b.blocker_id));
+          }
+          if (myBlockedResult.data) {
+            setMyBlockedUserIds(myBlockedResult.data.map((b: any) => b.blocked_id));
           }
         } catch (error) {
           console.log('Blocked users table not found - skipping');
@@ -762,7 +772,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     try {
       // Add to local blocked list
-      setBlockedUserIds(prev => [...prev, userId]);
+      setMyBlockedUserIds(prev => [...prev, userId]);
       
       // Store in database (you can create a blocked_users table)
       await supabase!
@@ -776,7 +786,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error blocking user:', error);
       // Revert local state on error
-      setBlockedUserIds(prev => prev.filter(id => id !== userId));
+      setMyBlockedUserIds(prev => prev.filter(id => id !== userId));
     }
   };
 
@@ -785,7 +795,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     try {
       // Remove from local blocked list
-      setBlockedUserIds(prev => prev.filter(id => id !== userId));
+      setMyBlockedUserIds(prev => prev.filter(id => id !== userId));
       
       // Remove from database
       await supabase!
@@ -798,7 +808,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error unblocking user:', error);
       // Revert local state on error
-      setBlockedUserIds(prev => [...prev, userId]);
+      setMyBlockedUserIds(prev => [...prev, userId]);
     }
   };
 
@@ -914,6 +924,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         blockUserByMe,
         unblockUserByMe,
         blockedUserIds,
+        myBlockedUserIds,
         deleteChat
       }}
     >

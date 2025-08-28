@@ -19,7 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onToggleMinimize 
 }) => {
   const { user } = useAuth();
-  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage, blockUserByMe, unblockUserByMe, blockedUserIds } = useApp();
+  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds } = useApp();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -33,7 +33,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     chat.participants.find(p => p !== user?.id) === u.id
   );
   
+  // Check if current user is blocked by the other participant (for sending messages)
   const isCurrentUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
+  // Check if other user is blocked by current user (for menu display)
+  const isOtherUserBlockedByMe = otherParticipant ? myBlockedUserIds.includes(otherParticipant.id) : false;
 
   // Load messages when chat opens
   useEffect(() => {
@@ -159,7 +162,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           {/* User menu dropdown */}
           {showUserMenu && (
             <div className="absolute top-full right-0 mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
-              {isCurrentUserBlocked ? (
+              {isOtherUserBlockedByMe ? (
                 <button
                   onClick={handleUnblockUser}
                   className="w-full px-3 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-slate-50 dark:hover:bg-neutral-700 flex items-center gap-2"
