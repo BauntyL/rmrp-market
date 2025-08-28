@@ -145,8 +145,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="font-medium text-slate-900 dark:text-white">
               {otherParticipant?.firstName} {otherParticipant?.lastName}
             </div>
-            <div className="text-xs text-green-600 dark:text-green-400">
-              В сети
+            <div className="text-xs text-slate-500 dark:text-neutral-500">
+              Статус недоступен
             </div>
           </div>
         </div>

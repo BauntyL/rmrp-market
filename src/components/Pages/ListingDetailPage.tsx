@@ -27,11 +27,11 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
   // Получаем реальные данные продавца из контекста
   const seller = listing ? getUserById(listing.userId) : null;
   
-  // Если продавец не найден, используем заглушку (но индикатор isOnline не доступен в базовом типе)
+  // Если продавец не найден, используем заглушку
   const sellerData = seller ? {
     ...seller,
-    isOnline: Math.random() > 0.5, // Мок онлайн-статуса
-    lastSeen: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24) // Мок времени последнего посещения
+    isOnline: false, // Статичный статус - не в сети
+    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2) // Статичное время - 2 часа назад
   } : null;
 
   if (!listing || !server) {
