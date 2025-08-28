@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { User, MessageSquare, Star, Settings, FileText, Bell, LogOut } from 'lucide-react';
+import { User, Star, Settings, FileText, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ListingCard } from '../Common/ListingCard';
-import { MessagesView } from '../Common/MessagesView';
 import { formatDate } from '../../lib/dateUtils';
 
 interface ProfilePageProps {
@@ -44,7 +43,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
   const tabs = [
     { id: 'listings', name: 'Мои объявления', icon: FileText, count: userListings.length },
-    { id: 'messages', name: 'Сообщения', icon: MessageSquare, count: 0 },
     { id: 'reviews', name: 'Отзывы', icon: Star, count: user.reviewCount },
     { id: 'notifications', name: 'Уведомления', icon: Bell, count: unreadNotifications.length },
     { id: 'settings', name: 'Настройки', icon: Settings }
@@ -225,14 +223,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              {activeTab === 'messages' && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
-                    Сообщения
-                  </h2>
-                  <MessagesView onNavigate={onNavigate} />
-                </div>
-              )}
 
               {activeTab === 'reviews' && (
                 <div className="bg-white dark:bg-neutral-800 rounded-2xl p-8 text-center">

@@ -14,6 +14,7 @@ import { ProfilePage } from './components/Pages/ProfilePage';
 import { CreateListingPage } from './components/Pages/CreateListingPage';
 import { ListingDetailPage } from './components/Pages/ListingDetailPage';
 import { AdminPage } from './components/Pages/AdminPage';
+import { MessagesPage } from './components/Pages/MessagesPage';
 
 // Simple router based on hash
 function App() {
@@ -41,6 +42,8 @@ function App() {
         return <ListingsPage onNavigate={navigate} />;
       case 'profile':
         return <ProfilePage onNavigate={navigate} />;
+      case 'messages':
+        return <MessagesPage onNavigate={navigate} />;
       case 'create-listing':
         return <CreateListingPage onNavigate={navigate} />;
       case 'admin':

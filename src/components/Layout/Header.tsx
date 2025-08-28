@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, User, Bell, Plus, Moon, Sun, Menu, X, Shield } from 'lucide-react';
+import { Search, User, Bell, Plus, Moon, Sun, Menu, X, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -102,6 +102,15 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                     Админ
                   </button>
                 )}
+
+                {/* Messages */}
+                <button
+                  onClick={() => onNavigate('messages')}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors"
+                >
+                  <MessageSquare size={16} />
+                  Сообщения
+                </button>
 
                 {/* Create Listing */}
                 <button
@@ -220,6 +229,17 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
 
             {isAuthenticated && (
               <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    onNavigate('messages');
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors"
+                >
+                  <MessageSquare size={16} />
+                  Сообщения
+                </button>
+                
                 <button
                   onClick={() => {
                     onNavigate('create-listing');
