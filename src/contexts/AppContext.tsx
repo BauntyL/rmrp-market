@@ -899,7 +899,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getUserOnlineStatus = (userId: string) => {
     const status = userOnlineStatus[userId];
     if (!status) {
-      return { isOnline: false, lastSeen: new Date(Date.now() - 1000 * 60 * 60) }; // Default: offline 1 hour ago
+      return { isOnline: false, lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2) }; // Default: offline 2 hours ago
     }
     return status;
   };

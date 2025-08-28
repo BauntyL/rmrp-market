@@ -32,7 +32,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
   const sellerData = seller ? {
     ...seller,
     isOnline: sellerOnlineStatus?.isOnline || false,
-    lastSeen: sellerOnlineStatus?.lastSeen || new Date(Date.now() - 1000 * 60 * 60 * 2)
+    lastSeen: sellerOnlineStatus?.lastSeen
   } : null;
 
   if (!listing || !server) {
@@ -406,7 +406,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
                           <span className="text-green-600 dark:text-green-400 font-medium">В сети</span>
                         ) : (
                           <span className="text-slate-500 dark:text-neutral-500">
-                            Был в сети {formatRelativeTime(sellerData.lastSeen)}
+                            {sellerData.lastSeen ? `Был в сети ${formatRelativeTime(sellerData.lastSeen)}` : 'Статус недоступен'}
                           </span>
                         )}
                       </div>
