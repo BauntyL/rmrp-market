@@ -46,18 +46,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     loadChatMessages(chat.id);
   }, [chat.id, loadChatMessages]);
 
+  // Scroll to bottom only when chat first opens
   useEffect(() => {
-    // Only auto-scroll for new messages from current user, or if explicitly requested
-    const lastMessage = chatMessages[chatMessages.length - 1];
-    const isOwnMessage = lastMessage?.senderId === user?.id;
-    
-    // Only scroll if it's user's own message
-    if (isOwnMessage && chatMessages.length > 0) {
+    if (chatMessages.length > 0) {
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
       }, 100);
     }
-  }, [chatMessages, user?.id]);
+  }, [chat.id]); // Only trigger when chat changes, not on new messages
 
 
   // (удалена синхронная версия, оставлена асинхронная ниже)
@@ -69,6 +65,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       await sendMessage(chat.id, newMessage.trim(), attachment);
       setNewMessage('');
       setAttachment(null);
+      
+      // Scroll to bottom only after sending a message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (err) {
       alert('Ошибка при отправке сообщения. Попробуйте ещё раз.');
     } finally {
