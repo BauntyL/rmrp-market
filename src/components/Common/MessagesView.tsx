@@ -11,7 +11,7 @@ interface MessagesViewProps {
 
 export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, blockedUserIds, loadChatMessages, deleteChat } = useApp();
+  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds, loadChatMessages, deleteChat } = useApp();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -34,8 +34,10 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
     ? users.find(u => selectedChat.participants.find(p => p !== user?.id) === u.id)
     : null;
 
-  // Проверка блокировки через blockedUserIds
-  const isBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
+  // Проверка блокировки: текущий пользователь заблокирован собеседником (не может писать)
+  const isCurrentUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
+  // Проверка блокировки: текущий пользователь заблокировал собеседника (для кнопок управления)
+  const isOtherUserBlockedByMe = otherParticipant ? myBlockedUserIds.includes(otherParticipant.id) : false;
 
   // Load messages when chat is selected
   useEffect(() => {
@@ -145,15 +147,26 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
               </div>
               
               <div className="flex items-center gap-2">
-                {otherParticipant && !isBlocked && (
-                  <button
-                    className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
-                    onClick={async () => {
-                      await blockUserByMe(otherParticipant.id);
-                    }}
-                  >
-                    Заблокировать
-                  </button>
+                {otherParticipant && (
+                  isOtherUserBlockedByMe ? (
+                    <button
+                      className="px-3 py-1 text-xs bg-green-100 text-green-600 rounded hover:bg-green-200"
+                      onClick={async () => {
+                        await unblockUserByMe(otherParticipant.id);
+                      }}
+                    >
+                      Разблокировать
+                    </button>
+                  ) : (
+                    <button
+                      className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                      onClick={async () => {
+                        await blockUserByMe(otherParticipant.id);
+                      }}
+                    >
+                      Заблокировать
+                    </button>
+                  )
                 )}
                 <button
                   className="p-1 hover:bg-red-100 rounded text-red-600"
@@ -279,9 +292,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
             </div>
 
             {/* Message Input */}
-            {isBlocked ? (
+            {isCurrentUserBlocked ? (
               <div className="p-4 text-center text-red-500 bg-red-50 border-t border-red-200">
-                Вы заблокировали этого пользователя. Отправка сообщений невозможна.
+                Вы заблокированы этим пользователем. Отправка сообщений невозможна.
               </div>
             ) : (
               <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 dark:border-neutral-700">
