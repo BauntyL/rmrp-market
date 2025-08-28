@@ -11,7 +11,7 @@ interface ListingDetailPageProps {
 
 export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId, onNavigate }) => {
   const { user, isAuthenticated } = useAuth();
-  const { listings, servers, getUserById, createChat } = useApp();
+  const { listings, servers, getUserById, createChat, getUserOnlineStatus } = useApp();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -27,11 +27,12 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({ listingId,
   // Получаем реальные данные продавца из контекста
   const seller = listing ? getUserById(listing.userId) : null;
   
-  // Если продавец не найден, используем заглушку
+  // Получаем реальный онлайн статус продавца
+  const sellerOnlineStatus = seller ? getUserOnlineStatus(seller.id) : null;
   const sellerData = seller ? {
     ...seller,
-    isOnline: false, // Статичный статус - не в сети
-    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2) // Статичное время - 2 часа назад
+    isOnline: sellerOnlineStatus?.isOnline || false,
+    lastSeen: sellerOnlineStatus?.lastSeen || new Date(Date.now() - 1000 * 60 * 60 * 2)
   } : null;
 
   if (!listing || !server) {

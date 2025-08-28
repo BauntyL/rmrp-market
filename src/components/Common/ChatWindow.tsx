@@ -19,7 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onToggleMinimize 
 }) => {
   const { user } = useAuth();
-  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds } = useApp();
+  const { messages, sendMessage, users, loadChatMessages, editMessage, deleteMessage, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds, getUserOnlineStatus } = useApp();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -37,6 +37,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const isCurrentUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
   // Check if other user is blocked by current user (for menu display)
   const isOtherUserBlockedByMe = otherParticipant ? myBlockedUserIds.includes(otherParticipant.id) : false;
+  
+  // Get real online status of other participant
+  const otherParticipantStatus = otherParticipant ? getUserOnlineStatus(otherParticipant.id) : null;
 
   // Load messages when chat opens
   useEffect(() => {
@@ -55,6 +58,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       }, 100);
     }
   }, [chatMessages, user?.id]);
+
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'только что';
+    if (diffInMinutes < 60) return `${diffInMinutes} мин назад`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ч назад`;
+    return `${Math.floor(diffInMinutes / 1440)} дн назад`;
+  };
 
   // (удалена синхронная версия, оставлена асинхронная ниже)
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -145,8 +158,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="font-medium text-slate-900 dark:text-white">
               {otherParticipant?.firstName} {otherParticipant?.lastName}
             </div>
-            <div className="text-xs text-slate-500 dark:text-neutral-500">
-              Статус недоступен
+            <div className={`text-xs ${otherParticipantStatus?.isOnline ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-neutral-500'}`}>
+              {otherParticipantStatus?.isOnline ? 'В сети' : 
+               otherParticipantStatus?.lastSeen ? `Был в сети ${formatRelativeTime(otherParticipantStatus.lastSeen)}` : 'Статус недоступен'}
             </div>
           </div>
         </div>

@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, MoreVertical, MessageCircle, Edit2, Trash2, X } from 'lucide-react';
+import { Send, Search, MessageCircle, Edit2, Trash2, X, UserX, UserCheck } from 'lucide-react';
 import { Chat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ChatList } from './ChatList';
 
 interface MessagesViewProps {
-  onNavigate: (page: string) => void;
+  onNavigate?: (page: string) => void;
 }
 
-export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
+export const MessagesView: React.FC<MessagesViewProps> = () => {
   const { user } = useAuth();
-  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds, loadChatMessages, deleteChat } = useApp();
+  const { chats, messages, sendMessage, users, typingUsers, setTyping, editMessage, deleteMessage, markMessageRead, blockUserByMe, unblockUserByMe, blockedUserIds, myBlockedUserIds, loadChatMessages, deleteChat, getUserOnlineStatus } = useApp();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -38,6 +38,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
   const isCurrentUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
   // Проверка блокировки: текущий пользователь заблокировал собеседника (для кнопок управления)
   const isOtherUserBlockedByMe = otherParticipant ? myBlockedUserIds.includes(otherParticipant.id) : false;
+  
+  // Получаем реальный онлайн статус собеседника
+  const otherParticipantStatus = otherParticipant ? getUserOnlineStatus(otherParticipant.id) : null;
 
   // Load messages when chat is selected
   useEffect(() => {
@@ -96,6 +99,16 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
     }
   };
 
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'только что';
+    if (diffInMinutes < 60) return `${diffInMinutes} мин назад`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ч назад`;
+    return `${Math.floor(diffInMinutes / 1440)} дн назад`;
+  };
+
   return (
     <div className="h-[600px] bg-white dark:bg-neutral-800 rounded-2xl shadow-sm overflow-hidden flex">
       {/* Chat List */}
@@ -140,8 +153,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ onNavigate }) => {
                   <div className="font-medium text-slate-900 dark:text-white">
                     {otherParticipant?.firstName} {otherParticipant?.lastName}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-neutral-500">
-                    Статус недоступен
+                  <div className={`text-xs ${otherParticipantStatus?.isOnline ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-neutral-500'}`}>
+                    {otherParticipantStatus?.isOnline ? 'В сети' : 
+                     otherParticipantStatus?.lastSeen ? `Был в сети ${formatRelativeTime(otherParticipantStatus.lastSeen)}` : 'Статус недоступен'}
                   </div>
                 </div>
               </div>

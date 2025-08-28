@@ -11,6 +11,8 @@ export interface User {
   blockExpires?: Date;
   rating: number;
   reviewCount: number;
+  isOnline?: boolean;
+  lastSeen?: Date;
 }
 
 // Server types
@@ -126,4 +128,6 @@ export interface AppContextType {
   blockUserByMe: (userId: string) => Promise<void>;
   unblockUserByMe: (userId: string) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
+  updateUserOnlineStatus: (userId: string, isOnline: boolean) => void;
+  getUserOnlineStatus: (userId: string) => { isOnline: boolean; lastSeen?: Date };
 }

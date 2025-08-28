@@ -6,7 +6,7 @@ import { ChatWindow } from './ChatWindow';
 
 export const ActiveChatsWidget: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
-  const { chats, users } = useApp();
+  const { chats, users, getUserOnlineStatus } = useApp();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -116,6 +116,17 @@ export const ActiveChatsWidget: React.FC = () => {
                               {formatLastMessageTime(chat.lastMessage.timestamp)}
                             </span>
                           )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {otherParticipant && (() => {
+                            const status = getUserOnlineStatus(otherParticipant.id);
+                            return (
+                              <div className={`w-2 h-2 rounded-full ${status.isOnline ? 'bg-green-500' : 'bg-slate-400'}`} />
+                            );
+                          })()}
+                          <p className="text-xs text-slate-600 dark:text-neutral-400 truncate">
+                            {chat.lastMessage?.content || 'Нет сообщений'}
+                          </p>
                         </div>
                         
                         {chat.lastMessage ? (

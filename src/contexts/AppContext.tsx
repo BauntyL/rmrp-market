@@ -24,6 +24,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({});
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [myBlockedUserIds, setMyBlockedUserIds] = useState<string[]>([]);
+  const [userOnlineStatus, setUserOnlineStatus] = useState<{ [userId: string]: { isOnline: boolean; lastSeen?: Date } }>({});
 
   // Initialize data
   useEffect(() => {
@@ -885,6 +886,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const updateUserOnlineStatus = (userId: string, isOnline: boolean) => {
+    setUserOnlineStatus(prev => ({
+      ...prev,
+      [userId]: {
+        isOnline,
+        lastSeen: isOnline ? undefined : new Date()
+      }
+    }));
+  };
+
+  const getUserOnlineStatus = (userId: string) => {
+    const status = userOnlineStatus[userId];
+    if (!status) {
+      return { isOnline: false, lastSeen: new Date(Date.now() - 1000 * 60 * 60) }; // Default: offline 1 hour ago
+    }
+    return status;
+  };
+
+  // Update current user's online status when component mounts/unmounts
+  useEffect(() => {
+    if (user) {
+      updateUserOnlineStatus(user.id, true);
+      
+      // Set user offline when page is closed/refreshed
+      const handleBeforeUnload = () => {
+        updateUserOnlineStatus(user.id, false);
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        updateUserOnlineStatus(user.id, false);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [user]);
+
   if (isLoading) {
     return null;
   }
@@ -925,7 +963,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         unblockUserByMe,
         blockedUserIds,
         myBlockedUserIds,
-        deleteChat
+        deleteChat,
+        updateUserOnlineStatus,
+        getUserOnlineStatus
       }}
     >
       {children}
