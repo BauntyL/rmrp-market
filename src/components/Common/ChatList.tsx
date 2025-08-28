@@ -12,7 +12,7 @@ interface ChatListProps {
 
 export const ChatList: React.FC<ChatListProps> = ({ chats, onChatSelect, selectedChatId }) => {
   const { user } = useAuth();
-  const { users, blockUserByMe, unblockUserByMe, blockedUserIds } = useApp();
+  const { users, blockUserByMe, unblockUserByMe, myBlockedUserIds } = useApp();
   const [showUserMenu, setShowUserMenu] = useState<string | null>(null);
 
   const formatLastMessageTime = (date: Date) => {
@@ -61,7 +61,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatSelect, selecte
       {chats.map((chat) => {
         const otherParticipant = getOtherParticipant(chat);
         const isSelected = selectedChatId === chat.id;
-        const isUserBlocked = otherParticipant ? blockedUserIds.includes(otherParticipant.id) : false;
+        const isUserBlockedByMe = otherParticipant ? myBlockedUserIds.includes(otherParticipant.id) : false;
         
         return (
           <div
@@ -94,7 +94,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatSelect, selecte
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-slate-900 dark:text-white truncate">
                     {otherParticipant?.firstName} {otherParticipant?.lastName}
-                    {isUserBlocked && (
+                    {isUserBlockedByMe && (
                       <span className="ml-2 text-xs text-red-500 dark:text-red-400">
                         (заблокирован)
                       </span>
@@ -137,7 +137,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatSelect, selecte
                 
                 {showUserMenu === chat.id && otherParticipant && (
                   <div className="absolute top-full right-0 mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
-                    {isUserBlocked ? (
+                    {isUserBlockedByMe ? (
                       <button
                         onClick={(e) => handleUnblockUser(otherParticipant.id, e)}
                         className="w-full px-3 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-slate-50 dark:hover:bg-neutral-700 flex items-center gap-2"
